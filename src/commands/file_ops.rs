@@ -31,8 +31,18 @@ pub fn cut(context: &mut AppContext) -> AppResult {
             curr_list.iter_mut().for_each(|entry| {
                 entry.set_cut_selected(false);
             });
-            if let Some(curr_entry) = curr_list.curr_entry_mut() {
-                curr_entry.set_cut_selected(true);
+
+            let history_list = curr_tab.history_mut();
+            history_list.iter_mut().for_each(|(_, list)| {
+                list.iter_mut().for_each(|entry| {
+                    entry.set_cut_selected(false);
+                });
+            });
+
+            if let Some(list) = curr_tab.curr_list_mut() {
+                if let Some(entry) = list.curr_entry_mut() {
+                    entry.set_cut_selected(true);
+                }
             }
         }
     }
