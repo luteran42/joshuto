@@ -108,6 +108,7 @@ impl std::str::FromStr for Command {
         if command == CMD_QUIT {
             match arg {
                 "--force" => Ok(Self::Quit(QuitAction::Force)),
+                "--restart" => Ok(Self::Restart(QuitAction::Restart)),
                 "--output-current-directory" => Ok(Self::Quit(QuitAction::OutputCurrentDirectory)),
                 "--output-selected-files" => Ok(Self::Quit(QuitAction::OutputSelectedFiles)),
                 _ => Ok(Self::Quit(QuitAction::Noop)),

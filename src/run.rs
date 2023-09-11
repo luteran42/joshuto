@@ -69,8 +69,30 @@ pub fn run_loop(
 
         // process user input
         process_input(context, backend, &keymap_t, event);
+
+        if context.quit == QuitAction::Restart {
+            restart()
+        }
     } // end of main loop
     Ok(())
+}
+
+fn restart() -> ! {
+    use std::env;
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStringExt;
+
+    // On linux this line should be OK
+    let exe = CString::new(env::current_exe().unwrap().into_os_string().into_vec()).unwrap();
+
+    // Get current arguments
+    let arg: Vec<CString> = env::args_os()
+        .map(|a| CString::new(a.into_vec()).unwrap())
+        .collect();
+
+    // Restart
+    nix::unistd::execvp(&exe, &arg).unwrap();
+    unreachable!();
 }
 
 #[inline]

@@ -47,7 +47,7 @@ xdg = "^2"
 [dependencies.nix]
 version = "^0"
 default_features = false
-features = ["user"]
+features = ["user", "process"]
 
 [dependencies.ratatui]
 version = "^0"

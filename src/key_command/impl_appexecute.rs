@@ -94,6 +94,7 @@ impl AppExecute for Command {
             }
 
             Self::Quit(action) => quit::quit_with_action(context, *action),
+            Self::Restart(action) => quit::quit_with_action(context, *action),
 
             Self::ReloadDirList => reload::reload_dirlist(context),
             Self::RenameFile { new_name } => rename_file::rename_file(context, new_name.as_path()),

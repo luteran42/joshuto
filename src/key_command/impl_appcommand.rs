@@ -7,6 +7,7 @@ impl AppCommand for Command {
             Self::Help => CMD_HELP,
 
             Self::Quit(_) => CMD_QUIT,
+            Self::Restart(_) => CMD_RESTART,
 
             Self::ToggleVisualMode => CMD_TOGGLE_VISUAL,
             Self::Escape => CMD_ESCAPE,

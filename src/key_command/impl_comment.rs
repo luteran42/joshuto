@@ -86,6 +86,7 @@ impl CommandComment for Command {
             Self::OpenFileWith { .. } => "Open using selected program",
 
             Self::Quit(_) => "Quit the program",
+            Self::Restart(_) => "Restart the program",
             Self::ReloadDirList => "Reload current dir listing",
             Self::RenameFile { .. } => "Rename file",
             Self::TouchFile { .. } => "Touch file",

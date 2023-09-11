@@ -90,6 +90,7 @@ pub enum Command {
         index: Option<usize>,
     },
     Quit(QuitAction),
+    Restart(QuitAction),
 
     ReloadDirList,
     RenameFile {
