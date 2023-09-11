@@ -24,8 +24,8 @@ fg = "light_red"
 bold = true
 
 [cut_selection]
-fg = "dark_gray"
-bold = true
+fg = "red"
+bold = false
 
 [selection.prefix]
 prefix = "  "
