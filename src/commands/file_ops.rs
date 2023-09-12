@@ -18,7 +18,8 @@ fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<(
 }
 
 pub fn cut(context: &mut AppContext) -> AppResult {
-    if let Some(curr_list) = context.tab_context_mut().curr_tab_mut().curr_list_mut() {
+    let curr_tab = context.tab_context_mut().curr_tab_mut();
+    if let Some(curr_list) = curr_tab.curr_list_mut() {
         if curr_list.selected_count() != 0 {
             curr_list.iter_mut().for_each(|entry| {
                 if entry.is_selected() {
@@ -33,10 +34,20 @@ pub fn cut(context: &mut AppContext) -> AppResult {
             curr_list.iter_mut().for_each(|entry| {
                 entry.set_cut_selected(false);
             });
-            if let Some(curr_entry) = curr_list.curr_entry_mut() {
-                curr_entry.set_visual_mode_selected(true);
-                curr_entry.set_permanent_selected(false);
-                curr_entry.set_cut_selected(true);
+
+            let history_list = curr_tab.history_mut();
+            history_list.iter_mut().for_each(|(_, list)| {
+                list.iter_mut().for_each(|entry| {
+                    entry.set_cut_selected(false);
+                });
+            });
+
+            if let Some(list) = curr_tab.curr_list_mut() {
+                if let Some(entry) = list.curr_entry_mut() {
+                    entry.set_visual_mode_selected(true);
+                    entry.set_permanent_selected(false);
+                    entry.set_cut_selected(true);
+                }
             }
         }
     }
