@@ -69,3 +69,11 @@ file_mimetype = []
 mouse = []
 syntax_highlight = ["ansi-to-tui"]
 default = ["devicons", "mouse", "syntax_highlight"]
+
+[profile.release]
+opt-level = 3       # Optimize
+lto = "fat"         # Enable link-time optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = 'abort'     # Abort on panic
+debug = 0           # no debug
+strip = true        # Strip symbols from binary
