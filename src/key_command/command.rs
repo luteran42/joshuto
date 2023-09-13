@@ -119,10 +119,19 @@ pub enum Command {
     SearchNext,
     SearchPrev,
 
-    SelectFiles {
+    SelectGlob {
         pattern: String,
         options: SelectOption,
     },
+    SelectRegex {
+        pattern: String,
+        options: SelectOption,
+    },
+    SelectString {
+        pattern: String,
+        options: SelectOption,
+    },
+
     SetCaseSensitivity {
         case_sensitivity: CaseSensitivity,
         set_type: SetType,
@@ -147,7 +156,13 @@ pub enum Command {
     Sort(SortType),
     SortReverse,
 
-    Filter {
+    FilterGlob {
+        pattern: String,
+    },
+    FilterRegex {
+        pattern: String,
+    },
+    FilterString {
         pattern: String,
     },
 
@@ -166,6 +181,9 @@ pub enum Command {
 
     SearchFzf,
     SubdirFzf,
+    SelectFzf {
+        options: SelectOption,
+    },
     Zoxide(String),
     ZoxideInteractive,
 
