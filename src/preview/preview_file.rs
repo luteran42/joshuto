@@ -1,6 +1,6 @@
 use std::path;
 use std::process::{Command, Output};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time;
 
@@ -12,7 +12,7 @@ use crate::lazy_static;
 use crate::ui::{views, AppBackend};
 
 lazy_static! {
-    static ref GUARD: Mutex<()> = Mutex::new(());
+    static ref RUNNING: AtomicBool = AtomicBool::new(true);
 }
 
 pub enum PreviewFileState {
@@ -79,41 +79,44 @@ impl Background {
 
                 let script = script.clone();
                 let event_tx = context.clone_event_tx();
-                context
-                    .preview_context_mut()
-                    .previews_mut()
-                    .insert(path.clone(), PreviewFileState::Loading);
 
-                let _ = thread::spawn(move || {
-                    let _locked = GUARD.lock().unwrap();
-                    let file_full_path = path.as_path();
+                if RUNNING.swap(false, Ordering::Relaxed) {
+                    context
+                        .preview_context_mut()
+                        .previews_mut()
+                        .insert(path.clone(), PreviewFileState::Loading);
 
-                    let res = Command::new(script)
-                        .arg("--path")
-                        .arg(file_full_path)
-                        .arg("--preview-width")
-                        .arg(preview_width.to_string())
-                        .arg("--preview-height")
-                        .arg(preview_height.to_string())
-                        .output();
-                    match res {
-                        Ok(output) => {
-                            let preview = FilePreview::from(output);
-                            let res = AppEvent::PreviewFile {
-                                path,
-                                res: Box::new(Ok(preview)),
-                            };
-                            let _ = event_tx.send(res);
+                    thread::spawn(move || {
+                        let file_full_path = path.as_path();
+
+                        let res = Command::new(script)
+                            .arg("--path")
+                            .arg(file_full_path)
+                            .arg("--preview-width")
+                            .arg(preview_width.to_string())
+                            .arg("--preview-height")
+                            .arg(preview_height.to_string())
+                            .output();
+                        match res {
+                            Ok(output) => {
+                                let preview = FilePreview::from(output);
+                                let res = AppEvent::PreviewFile {
+                                    path,
+                                    res: Box::new(Ok(preview)),
+                                };
+                                let _ = event_tx.send(res);
+                            }
+                            Err(e) => {
+                                let res = AppEvent::PreviewFile {
+                                    path,
+                                    res: Box::new(Err(e)),
+                                };
+                                let _ = event_tx.send(res);
+                            }
                         }
-                        Err(e) => {
-                            let res = AppEvent::PreviewFile {
-                                path,
-                                res: Box::new(Err(e)),
-                            };
-                            let _ = event_tx.send(res);
-                        }
-                    }
-                });
+                        RUNNING.store(true, Ordering::Relaxed);
+                    });
+                }
             }
         }
     }
