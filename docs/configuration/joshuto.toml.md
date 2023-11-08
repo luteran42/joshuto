@@ -20,8 +20,21 @@ use_trash = true
 # Watch for filesystem changes and update directory listings accordingly
 watch_files = true
 
+# If true the cursor will focus newly created files or directories with `:touch` or `:mkdir`
+# Even if true, the behavior can be avoided prefixing the new file/dir with "./"
+# E.g.:
+# - `:mkdir a` moves the cursor to the new directory `a`
+# - `:mkdir ./b` keeps the cursor where it was
+focus_on_create = true
+
 # The maximum file size to show a preview for
 max_preview_size = 2097152 # 2MB
+
+# Define custom commands (using shell) with parameters like %text, %s etc.
+custom_commands = [
+   { name = "rgfzf", command = "/home/<USER>/.config/joshuto/rgfzf '%text' %s" },
+   { name = "rg", command = "/home/<USER>/.config/joshuto/rg '%text' %s" }
+]
 
 # Configurations related to the display
 [display]
@@ -121,4 +134,5 @@ fzf_case_sensitivity = "insensitive"
 [tab]
 # inherit, home, root
 home_page = "home"
+
 ```
