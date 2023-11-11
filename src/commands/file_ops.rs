@@ -3,6 +3,7 @@ use std::process::{Command, Stdio};
 
 use crate::context::{AppContext, LocalStateContext};
 use crate::error::{AppError, AppErrorKind, AppResult};
+use crate::fs::JoshutoDirList;
 use crate::io::{FileOperation, FileOperationOptions, IoWorkerThread};
 
 fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<()> {
@@ -17,40 +18,28 @@ fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<(
     Some(())
 }
 
+fn mark_entries_for_cut(curr_tab: &mut JoshutoDirList) {
+    if curr_tab.selected_count() != 0 {
+        curr_tab.iter_mut().for_each(|entry| {
+            if entry.is_selected() {
+                entry.set_cut_selected(true);
+                entry.set_visual_mode_selected(true);
+                entry.set_permanent_selected(false);
+            }
+        })
+    } else if let Some(entry) = curr_tab.curr_entry_mut() {
+        entry.set_cut_selected(true);
+        entry.set_visual_mode_selected(true);
+        entry.set_permanent_selected(false);
+    }
+}
+
 pub fn cut(context: &mut AppContext) -> AppResult {
     let curr_tab = context.tab_context_mut().curr_tab_mut();
     if let Some(curr_list) = curr_tab.curr_list_mut() {
-        if curr_list.selected_count() != 0 {
-            curr_list.iter_mut().for_each(|entry| {
-                if entry.is_selected() {
-                    entry.set_visual_mode_selected(true);
-                    entry.set_permanent_selected(false);
-                    entry.set_cut_selected(true);
-                } else {
-                    entry.set_cut_selected(false);
-                }
-            })
-        } else {
-            curr_list.iter_mut().for_each(|entry| {
-                entry.set_cut_selected(false);
-            });
-
-            let history_list = curr_tab.history_mut();
-            history_list.iter_mut().for_each(|(_, list)| {
-                list.iter_mut().for_each(|entry| {
-                    entry.set_cut_selected(false);
-                });
-            });
-
-            if let Some(list) = curr_tab.curr_list_mut() {
-                if let Some(entry) = list.curr_entry_mut() {
-                    entry.set_visual_mode_selected(true);
-                    entry.set_permanent_selected(false);
-                    entry.set_cut_selected(true);
-                }
-            }
-        }
+        mark_entries_for_cut(curr_list);
     }
+
     new_local_state(context, FileOperation::Cut);
     Ok(())
 }
