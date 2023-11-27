@@ -71,12 +71,14 @@ pub fn run_loop(
         process_input(context, backend, &keymap_t, event);
 
         if context.quit == QuitAction::Restart {
+            backend.terminal_restore()?;
             restart()
         }
     } // end of main loop
     Ok(())
 }
 
+#[inline]
 fn restart() -> ! {
     use std::env;
     use std::ffi::CString;
