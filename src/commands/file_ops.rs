@@ -23,14 +23,10 @@ fn mark_entries_for_cut(curr_tab: &mut JoshutoDirList) {
         curr_tab.iter_mut().for_each(|entry| {
             if entry.is_selected() {
                 entry.set_cut_selected(true);
-                entry.set_visual_mode_selected(true);
-                entry.set_permanent_selected(false);
             }
         })
     } else if let Some(entry) = curr_tab.curr_entry_mut() {
         entry.set_cut_selected(true);
-        entry.set_visual_mode_selected(true);
-        entry.set_permanent_selected(false);
     }
 }
 
