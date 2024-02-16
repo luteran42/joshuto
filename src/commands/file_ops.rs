@@ -18,22 +18,22 @@ fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<(
     Some(())
 }
 
-fn mark_entries_for_cut(curr_tab: &mut JoshutoDirList) {
+fn mark_entries(curr_tab: &mut JoshutoDirList) {
     if curr_tab.selected_count() != 0 {
         curr_tab.iter_mut().for_each(|entry| {
             if entry.is_selected() {
-                entry.set_cut_selected(true);
+                entry.set_mark_selected(true);
             }
         })
     } else if let Some(entry) = curr_tab.curr_entry_mut() {
-        entry.set_cut_selected(true);
+        entry.set_mark_selected(true);
     }
 }
 
 pub fn cut(context: &mut AppContext) -> AppResult {
     let curr_tab = context.tab_context_mut().curr_tab_mut();
     if let Some(curr_list) = curr_tab.curr_list_mut() {
-        mark_entries_for_cut(curr_list);
+        mark_entries(curr_list);
     }
 
     new_local_state(context, FileOperation::Cut);
@@ -41,16 +41,31 @@ pub fn cut(context: &mut AppContext) -> AppResult {
 }
 
 pub fn copy(context: &mut AppContext) -> AppResult {
+    let curr_tab = context.tab_context_mut().curr_tab_mut();
+    if let Some(curr_list) = curr_tab.curr_list_mut() {
+        mark_entries(curr_list);
+    }
+
     new_local_state(context, FileOperation::Copy);
     Ok(())
 }
 
 pub fn symlink_absolute(context: &mut AppContext) -> AppResult {
+    let curr_tab = context.tab_context_mut().curr_tab_mut();
+    if let Some(curr_list) = curr_tab.curr_list_mut() {
+        mark_entries(curr_list);
+    }
+
     new_local_state(context, FileOperation::Symlink { relative: false });
     Ok(())
 }
 
 pub fn symlink_relative(context: &mut AppContext) -> AppResult {
+    let curr_tab = context.tab_context_mut().curr_tab_mut();
+    if let Some(curr_list) = curr_tab.curr_list_mut() {
+        mark_entries(curr_list);
+    }
+
     new_local_state(context, FileOperation::Symlink { relative: true });
     Ok(())
 }

@@ -30,14 +30,14 @@ pub fn entry_style(entry: &JoshutoDirEntry) -> Style {
     let filetype = metadata.file_type();
     let linktype = metadata.link_type();
 
-    if entry.is_visual_mode_selected() {
-        return visual_mode_selected_style();
+    if entry.is_marked() {
+        return mark_selected_style();
     }
     if entry.is_permanent_selected() {
         return permanent_selected_style();
     }
-    if entry.is_cut_selected() {
-        return cut_selected_style();
+    if entry.is_visual_mode_selected() {
+        return visual_mode_selected_style();
     }
 
     match &THEME_T.lscolors {
@@ -75,11 +75,11 @@ fn permanent_selected_style() -> Style {
         .add_modifier(THEME_T.selection.modifier)
 }
 
-fn cut_selected_style() -> Style {
+fn mark_selected_style() -> Style {
     Style::default()
-        .fg(THEME_T.cut_selection.fg)
-        .bg(THEME_T.cut_selection.bg)
-        .add_modifier(THEME_T.cut_selection.modifier)
+        .fg(THEME_T.mark.fg)
+        .bg(THEME_T.mark.bg)
+        .add_modifier(THEME_T.mark.modifier)
 }
 
 fn symlink_valid_style() -> Style {
