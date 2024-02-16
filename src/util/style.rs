@@ -39,6 +39,8 @@ pub fn entry_style(entry: &JoshutoDirEntry) -> Style {
                 visual_mode_selected_style()
             } else if entry.is_permanent_selected() {
                 permanent_selected_style()
+            } else if entry.is_cut_selected() {
+                cut_selected_style()
             } else {
                 match linktype {
                     LinkType::Symlink { valid: true, .. } => symlink_valid_style(),
@@ -61,7 +63,7 @@ fn entry_theme_style(entry: &JoshutoDirEntry, linktype: &LinkType, filetype: &Fi
     } else if entry.is_permanent_selected() {
         permanent_selected_style()
     } else if entry.is_cut_selected() {
-        is_cut_selected_style()
+        cut_selected_style()
     } else {
         match linktype {
             LinkType::Symlink { valid: true, .. } => symlink_valid_style(),
@@ -88,7 +90,7 @@ fn permanent_selected_style() -> Style {
         .add_modifier(THEME_T.selection.modifier)
 }
 
-fn is_cut_selected_style() -> Style {
+fn cut_selected_style() -> Style {
     Style::default()
         .fg(THEME_T.cut_selection.fg)
         .bg(THEME_T.cut_selection.bg)
