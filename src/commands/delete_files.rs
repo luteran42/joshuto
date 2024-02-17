@@ -46,6 +46,7 @@ fn delete_files(
         overwrite: false,
         skip_exist: false,
         permanently: !context.config_ref().use_trash || permanently,
+        cancel: false,
     };
 
     let dest = path::PathBuf::new();

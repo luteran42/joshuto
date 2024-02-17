@@ -8,14 +8,17 @@ use crate::io::{FileOperation, FileOperationOptions, IoWorkerThread};
 
 fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<()> {
     let list = context.tab_context_ref().curr_tab_ref().curr_list_ref()?;
-    let selected = list.get_selected_paths();
+    if list.iter().any(|entry| entry.is_marked()) {
+        let selected = list.get_selected_paths();
+        let mut local_state = LocalStateContext::new();
+        local_state.set_paths(selected.into_iter());
+        local_state.set_file_op(file_op);
 
-    let mut local_state = LocalStateContext::new();
-    local_state.set_paths(selected.into_iter());
-    local_state.set_file_op(file_op);
-
-    context.set_local_state(local_state);
-    Some(())
+        context.set_local_state(local_state);
+        Some(())
+    } else {
+        None
+    }
 }
 
 fn mark_entries(curr_tab: &mut JoshutoDirList) {

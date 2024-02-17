@@ -252,6 +252,7 @@ impl std::str::FromStr for Command {
                     "--skip_exist=true" => options.skip_exist = true,
                     "--overwrite=false" => options.overwrite = false,
                     "--skip_exist=false" => options.skip_exist = false,
+                    "--cancel" => options.cancel = true,
                     _ => {
                         return Err(AppError::new(
                             AppErrorKind::UnrecognizedArgument,
