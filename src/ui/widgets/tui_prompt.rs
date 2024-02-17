@@ -3,6 +3,7 @@ use ratatui::style::{Color, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Clear, Paragraph, Wrap};
 use termion::event::{Event, Key};
+use termion::style::{Blink, Bold};
 
 use crate::context::AppContext;
 use crate::event::process_event;
@@ -36,7 +37,10 @@ impl<'a> TuiPrompt<'a> {
                     frame.render_widget(view, f_size);
                 }
 
-                let prompt_style = Style::default().fg(Color::LightYellow);
+                let prompt_style = Style::default()
+                    .fg(Color::Red)
+                    .add_modifier(Blink.into())
+                    .add_modifier(Bold.into());
 
                 let text = Span::styled(self.prompt, prompt_style);
 
