@@ -176,9 +176,13 @@ pub fn create_dirlist_with_history(
         );
         for entry in contents.iter_mut() {
             if let Some(former_entry) = former_entries_by_file_name.get(entry.file_name()) {
-                entry.set_mark_selected(former_entry.is_marked());
-                entry.set_permanent_selected(former_entry.is_permanent_selected());
-                entry.set_visual_mode_selected(former_entry.is_visual_mode_selected());
+                if former_entry.is_marked() {
+                    entry.set_mark_selected(false);
+                } else if former_entry.is_permanent_selected() {
+                    entry.set_permanent_selected(former_entry.is_permanent_selected());
+                } else {
+                    entry.set_visual_mode_selected(former_entry.is_visual_mode_selected());
+                }
             }
         }
     }
