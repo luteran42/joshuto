@@ -53,7 +53,7 @@ impl From<AppThemeRaw> for AppTheme {
         let tabs = raw.tabs;
         let selection = raw.selection.to_style_theme();
         let visual_mode_selection = raw.visual_mode_selection.to_style_theme();
-        let marked = raw.marked.to_style_theme();
+        let mark = raw.marked.to_style_theme();
         let executable = raw.executable.to_style_theme();
         let regular = raw.regular.to_style_theme();
         let directory = raw.directory.to_style_theme();
@@ -79,7 +79,7 @@ impl From<AppThemeRaw> for AppTheme {
         Self {
             selection,
             visual_mode_selection,
-            mark: marked,
+            mark,
             executable,
             regular,
             directory,
