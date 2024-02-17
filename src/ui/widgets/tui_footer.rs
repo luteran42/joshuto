@@ -3,6 +3,7 @@ use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
+use termion::style::Bold;
 
 use crate::config::clean::app::display::tab::TabDisplayOption;
 use crate::fs::{JoshutoDirList, LinkType};
@@ -31,6 +32,11 @@ impl<'a> Widget for TuiFooter<'a> {
 
         let visual_mode_style = Style::default().fg(Color::Black).bg(Color::LightRed);
         let mode_style = Style::default().fg(Color::Cyan);
+        let file_name_style = Style::default().fg(Color::Blue).add_modifier(Bold.into());
+        let mtime_style = Style::default().add_modifier(Bold.into());
+        let size_style = Style::default()
+            .fg(Color::LightYellow)
+            .add_modifier(Bold.into());
 
         // flat and filter commands indicator style
         let indicator_style = Style::default()
@@ -54,6 +60,7 @@ impl<'a> Widget for TuiFooter<'a> {
 
                 let mtime_str = format::mtime_to_string(entry.metadata.modified());
                 let size_str = format::file_size_to_string(entry.metadata.len());
+                let path_str = entry.file_name();
 
                 let path = self.dirlist.file_path();
 
@@ -74,14 +81,16 @@ impl<'a> Widget for TuiFooter<'a> {
                     Span::styled(mode_str, mode_style),
                     Span::raw("  "),
                     Span::raw(user_str),
-                    Span::raw(" "),
+                    Span::raw(":"),
                     Span::raw(group_str),
                     Span::raw("  "),
                     Span::raw(format!("{}/{}", i + 1, self.dirlist.len())),
                     Span::raw("  "),
-                    Span::raw(mtime_str),
-                    Span::raw(TIMEZONE_STR.as_str()),
-                    Span::raw(size_str),
+                    Span::styled(mtime_str, mtime_style),
+                    Span::styled(TIMEZONE_STR.as_str(), mtime_style),
+                    Span::styled(size_str, size_style),
+                    Span::raw("  "),
+                    Span::styled(path_str, file_name_style),
                     Span::raw("  "),
                     Span::styled(
                         match self.tab_options.dirlist_options_ref(&path.to_path_buf()) {
