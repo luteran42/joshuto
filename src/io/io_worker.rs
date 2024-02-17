@@ -124,6 +124,13 @@ impl IoWorkerThread {
         &self,
         tx: mpsc::Sender<FileOperationProgress>,
     ) -> AppResult<FileOperationProgress> {
+        if self.options.cancel {
+            return Err(AppError::new(
+                AppErrorKind::UnknownError,
+                "Symlink (absolute): operation cancelled!".to_string(),
+            ));
+        }
+
         let total_files = self.paths.len();
         let total_bytes = total_files as u64;
         let mut progress = FileOperationProgress::new(
@@ -156,6 +163,12 @@ impl IoWorkerThread {
         &self,
         tx: mpsc::Sender<FileOperationProgress>,
     ) -> AppResult<FileOperationProgress> {
+        if self.options.cancel {
+            return Err(AppError::new(
+                AppErrorKind::UnknownError,
+                "Symlink (relative): operation cancelled!".to_string(),
+            ));
+        }
         let total_files = self.paths.len();
         let total_bytes = total_files as u64;
         let mut progress = FileOperationProgress::new(
