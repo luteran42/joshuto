@@ -110,12 +110,6 @@ impl JoshutoDirEntry {
         self.marked = mark_selected;
     }
 
-    pub fn set_all_deselect(&mut self) {
-        self.set_mark_selected(false);
-        self.set_permanent_selected(false);
-        self.set_visual_mode_selected(false);
-    }
-
     pub fn get_ext(&self) -> &str {
         let fname = self.file_name();
         match fname.rfind('.') {
