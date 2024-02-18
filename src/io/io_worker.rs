@@ -60,7 +60,7 @@ impl IoWorkerThread {
     ) -> AppResult<FileOperationProgress> {
         if self.options.cancel {
             return Err(AppError::new(
-                AppErrorKind::UnknownError,
+                AppErrorKind::Io(io::ErrorKind::Interrupted),
                 "Copy: operation cancelled!".to_string(),
             ));
         }
@@ -93,7 +93,7 @@ impl IoWorkerThread {
     ) -> AppResult<FileOperationProgress> {
         if self.options.cancel {
             return Err(AppError::new(
-                AppErrorKind::UnknownError,
+                AppErrorKind::Io(io::ErrorKind::Interrupted),
                 "Cut: operation cancelled!".to_string(),
             ));
         }
@@ -126,7 +126,7 @@ impl IoWorkerThread {
     ) -> AppResult<FileOperationProgress> {
         if self.options.cancel {
             return Err(AppError::new(
-                AppErrorKind::UnknownError,
+                AppErrorKind::Io(io::ErrorKind::Interrupted),
                 "Symlink (absolute): operation cancelled!".to_string(),
             ));
         }
@@ -165,7 +165,7 @@ impl IoWorkerThread {
     ) -> AppResult<FileOperationProgress> {
         if self.options.cancel {
             return Err(AppError::new(
-                AppErrorKind::UnknownError,
+                AppErrorKind::Io(io::ErrorKind::Interrupted),
                 "Symlink (relative): operation cancelled!".to_string(),
             ));
         }
