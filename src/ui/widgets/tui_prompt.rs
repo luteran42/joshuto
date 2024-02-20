@@ -1,9 +1,8 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Clear, Paragraph, Wrap};
 use termion::event::{Event, Key};
-use termion::style::Bold;
 
 use crate::context::AppContext;
 use crate::event::process_event;
@@ -39,7 +38,7 @@ impl<'a> TuiPrompt<'a> {
 
                 let prompt_style = Style::default()
                     .fg(Color::LightRed)
-                    .add_modifier(Bold.into());
+                    .add_modifier(Modifier::BOLD);
 
                 let text = Span::styled(self.prompt, prompt_style);
 

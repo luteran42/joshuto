@@ -1,9 +1,8 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
-use termion::style::Bold;
 
 use crate::config::clean::app::display::tab::TabDisplayOption;
 use crate::fs::{JoshutoDirList, LinkType};
@@ -32,11 +31,13 @@ impl<'a> Widget for TuiFooter<'a> {
 
         let visual_mode_style = Style::default().fg(Color::Black).bg(Color::LightRed);
         let mode_style = Style::default().fg(Color::Cyan);
-        let file_name_style = Style::default().fg(Color::Blue).add_modifier(Bold.into());
-        let mtime_style = Style::default().add_modifier(Bold.into());
+        let file_name_style = Style::default()
+            .fg(Color::Blue)
+            .add_modifier(Modifier::BOLD);
+        let mtime_style = Style::default().add_modifier(Modifier::BOLD);
         let size_style = Style::default()
             .fg(Color::LightYellow)
-            .add_modifier(Bold.into());
+            .add_modifier(Modifier::BOLD);
 
         // flat and filter commands indicator style
         let indicator_style = Style::default()
