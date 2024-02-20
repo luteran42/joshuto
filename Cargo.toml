@@ -33,7 +33,7 @@ lazy_static = "^1"
 libc = "^0"
 lscolors = { version = "0.17.0", features = ["nu-ansi-term"] }
 notify = "^6"
-num_cpus = "1.16.0"
+num_cpus = "^1"
 open = "^5"
 phf = { version = "^0", features = ["macros"], optional = true }
 rand = "^0"
@@ -44,7 +44,7 @@ shadow-rs = "0.26"
 shell-words = "^1"
 shellexpand = { version = "^3", features = ["full"] }
 signal-hook = "^0"
-std-semaphore = "0.1.0"
+std-semaphore = "^0"
 termion = "^2"
 toml = "^0"
 unicode-segmentation = "^1"
