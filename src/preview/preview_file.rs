@@ -5,14 +5,14 @@ use std::time;
 
 use lazy_static::lazy_static;
 use ratatui::layout::Rect;
-use std_semaphore::Semaphore;
 
 use crate::context::AppContext;
 use crate::event::AppEvent;
 use crate::ui::{views, AppBackend};
+use crate::util::semaphore::Semaphore;
 
 lazy_static! {
-    static ref SEM: Semaphore = Semaphore::new(num_cpus::get().try_into().unwrap());
+    static ref SEM: Semaphore = Semaphore::new(num_cpus::get());
 }
 
 pub enum PreviewFileState {
