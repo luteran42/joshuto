@@ -12,7 +12,7 @@ use crate::event::AppEvent;
 use crate::ui::{views, AppBackend};
 
 lazy_static! {
-    static ref SEM: Semaphore = Semaphore::new(4);
+    static ref SEM: Semaphore = Semaphore::new(num_cpus::get().try_into().unwrap());
 }
 
 pub enum PreviewFileState {
