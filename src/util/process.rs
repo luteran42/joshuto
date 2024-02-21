@@ -58,11 +58,19 @@ where
     command.args(entry.get_args());
     command.args(paths);
 
-    let _ = command.status()?;
-
-    if entry.get_confirm_exit() {
-        wait_for_enter()?;
+    if entry.get_pager() {
+        println!("{}", termion::clear::All);
+        let pager_env = std::env::var("PAGER").unwrap_or_else(|_| String::from("less"));
+        let pager_args: Vec<&str> = pager_env.split_whitespace().collect();
+        command.stdout(process::Stdio::piped());
+        if let Some(child_stdout) = command.spawn()?.stdout {
+            let mut pager_command = process::Command::new(pager_args[0]);
+            pager_command.args(&pager_args[1..]);
+            pager_command.stdin(child_stdout);
+            pager_command.status()?;
+        }
     }
+    command.status()?;
 
     Ok(())
 }
