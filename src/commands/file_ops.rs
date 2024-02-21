@@ -45,6 +45,25 @@ fn unmark_entries(curr_tab: &mut JoshutoDirList) {
     }
 }
 
+fn unmark_and_cancel_all(context: &mut AppContext) -> AppResult {
+    context.tab_context_mut().iter_mut().for_each(|entry| {
+        if let Some(curr_list) = entry.1.curr_list_mut() {
+            unmark_entries(curr_list);
+        }
+        if let Some(par_list) = entry.1.parent_list_mut() {
+            unmark_entries(par_list);
+        }
+        if let Some(child_list) = entry.1.child_list_mut() {
+            unmark_entries(child_list);
+        }
+    });
+
+    Err(AppError::new(
+        AppErrorKind::Io(io::ErrorKind::Interrupted),
+        "File operation cancelled!".to_string(),
+    ))
+}
+
 pub fn cut(context: &mut AppContext) -> AppResult {
     let curr_tab = context.tab_context_mut().curr_tab_mut();
     if let Some(curr_list) = curr_tab.curr_list_mut() {
@@ -89,19 +108,7 @@ pub fn paste(context: &mut AppContext, options: FileOperationOptions) -> AppResu
     match context.take_local_state() {
         Some(state) if !state.paths.is_empty() => {
             if options.cancel {
-                context.tab_context_mut().iter_mut().for_each(|entry| {
-                    if let Some(curr_list) = entry.1.curr_list_mut() {
-                        unmark_entries(curr_list);
-                    }
-                    if let Some(par_list) = entry.1.parent_list_mut() {
-                        unmark_entries(par_list);
-                    }
-                });
-
-                return Err(AppError::new(
-                    AppErrorKind::Io(io::ErrorKind::Interrupted),
-                    "File operation cancelled!".to_string(),
-                ));
+                unmark_and_cancel_all(context)?;
             }
 
             let dest = context.tab_context_ref().curr_tab_ref().cwd().to_path_buf();
