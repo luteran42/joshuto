@@ -1,5 +1,6 @@
 use std::path;
 use std::process::{Command, Output};
+use std::sync::Arc;
 use std::thread;
 use std::time;
 
@@ -12,7 +13,7 @@ use crate::ui::{views, AppBackend};
 use crate::util::semaphore::Semaphore;
 
 lazy_static! {
-    static ref SEM: Semaphore = Semaphore::new(num_cpus::get());
+    static ref SEM: Arc<Semaphore> = Arc::new(Semaphore::new(num_cpus::get()));
 }
 
 pub enum PreviewFileState {
@@ -52,6 +53,7 @@ impl Background {
         backend: &mut AppBackend,
         path: path::PathBuf,
     ) {
+        let semaphore = Arc::clone(&SEM);
         let preview_options = context.config_ref().preview_options_ref();
         if let Some(script) = preview_options.preview_script.as_ref() {
             if let Ok(area) = backend.terminal_ref().size() {
@@ -85,7 +87,7 @@ impl Background {
                     .insert(path.clone(), PreviewFileState::Loading);
 
                 let _ = thread::spawn(move || {
-                    let _semguard = SEM.access();
+                    let _guard = semaphore.access();
                     let file_full_path = path.as_path();
 
                     let res = Command::new(script)
