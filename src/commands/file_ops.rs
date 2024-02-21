@@ -89,13 +89,14 @@ pub fn paste(context: &mut AppContext, options: FileOperationOptions) -> AppResu
     match context.take_local_state() {
         Some(state) if !state.paths.is_empty() => {
             if options.cancel {
-                let curr_tab = context.tab_context_mut().curr_tab_mut();
-                if let Some(curr_list) = curr_tab.curr_list_mut() {
-                    unmark_entries(curr_list);
-                }
-                if let Some(par_list) = curr_tab.parent_list_mut() {
-                    unmark_entries(par_list);
-                }
+                context.tab_context_mut().iter_mut().for_each(|entry| {
+                    if let Some(curr_list) = entry.1.curr_list_mut() {
+                        unmark_entries(curr_list);
+                    }
+                    if let Some(par_list) = entry.1.parent_list_mut() {
+                        unmark_entries(par_list);
+                    }
+                });
 
                 return Err(AppError::new(
                     AppErrorKind::Io(io::ErrorKind::Interrupted),
