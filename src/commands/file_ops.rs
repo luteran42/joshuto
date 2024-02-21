@@ -93,6 +93,10 @@ pub fn paste(context: &mut AppContext, options: FileOperationOptions) -> AppResu
                 if let Some(curr_list) = curr_tab.curr_list_mut() {
                     unmark_entries(curr_list);
                 }
+                if let Some(par_list) = curr_tab.parent_list_mut() {
+                    unmark_entries(par_list);
+                }
+
                 return Err(AppError::new(
                     AppErrorKind::Io(io::ErrorKind::Interrupted),
                     "File operation cancelled!".to_string(),
