@@ -58,13 +58,6 @@ impl IoWorkerThread {
         &self,
         tx: mpsc::Sender<FileOperationProgress>,
     ) -> AppResult<FileOperationProgress> {
-        if self.options.cancel {
-            return Err(AppError::new(
-                AppErrorKind::Io(io::ErrorKind::Interrupted),
-                "Copy: operation cancelled!".to_string(),
-            ));
-        }
-
         let (total_files, total_bytes) = query_number_of_items(&self.paths)?;
         let mut progress = FileOperationProgress::new(
             self.kind(),
@@ -91,13 +84,6 @@ impl IoWorkerThread {
         &self,
         tx: mpsc::Sender<FileOperationProgress>,
     ) -> AppResult<FileOperationProgress> {
-        if self.options.cancel {
-            return Err(AppError::new(
-                AppErrorKind::Io(io::ErrorKind::Interrupted),
-                "Cut: operation cancelled!".to_string(),
-            ));
-        }
-
         let (total_files, total_bytes) = query_number_of_items(&self.paths)?;
         let mut progress = FileOperationProgress::new(
             self.kind(),
@@ -124,13 +110,6 @@ impl IoWorkerThread {
         &self,
         tx: mpsc::Sender<FileOperationProgress>,
     ) -> AppResult<FileOperationProgress> {
-        if self.options.cancel {
-            return Err(AppError::new(
-                AppErrorKind::Io(io::ErrorKind::Interrupted),
-                "Symlink (absolute): operation cancelled!".to_string(),
-            ));
-        }
-
         let total_files = self.paths.len();
         let total_bytes = total_files as u64;
         let mut progress = FileOperationProgress::new(
@@ -163,12 +142,6 @@ impl IoWorkerThread {
         &self,
         tx: mpsc::Sender<FileOperationProgress>,
     ) -> AppResult<FileOperationProgress> {
-        if self.options.cancel {
-            return Err(AppError::new(
-                AppErrorKind::Io(io::ErrorKind::Interrupted),
-                "Symlink (relative): operation cancelled!".to_string(),
-            ));
-        }
         let total_files = self.paths.len();
         let total_bytes = total_files as u64;
         let mut progress = FileOperationProgress::new(

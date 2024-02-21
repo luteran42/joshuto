@@ -24,12 +24,24 @@ fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<(
 fn mark_entries(curr_tab: &mut JoshutoDirList) {
     if curr_tab.selected_count() != 0 {
         curr_tab.iter_mut().for_each(|entry| {
-            if entry.is_selected() {
+            if entry.is_permanent_selected() {
                 entry.set_mark_selected(true);
             }
         })
     } else if let Some(entry) = curr_tab.curr_entry_mut() {
         entry.set_mark_selected(true);
+    }
+}
+
+fn unmark_entries(curr_tab: &mut JoshutoDirList) {
+    if curr_tab.selected_count() != 0 {
+        curr_tab.iter_mut().for_each(|entry| {
+            if entry.is_marked() {
+                entry.set_mark_selected(false);
+            }
+        })
+    } else if let Some(entry) = curr_tab.curr_entry_mut() {
+        entry.set_mark_selected(false);
     }
 }
 
@@ -76,9 +88,21 @@ pub fn symlink_relative(context: &mut AppContext) -> AppResult {
 pub fn paste(context: &mut AppContext, options: FileOperationOptions) -> AppResult {
     match context.take_local_state() {
         Some(state) if !state.paths.is_empty() => {
+            if options.cancel {
+                let curr_tab = context.tab_context_mut().curr_tab_mut();
+                if let Some(curr_list) = curr_tab.curr_list_mut() {
+                    unmark_entries(curr_list);
+                }
+                return Err(AppError::new(
+                    AppErrorKind::Io(io::ErrorKind::Interrupted),
+                    "File operation cancelled!".to_string(),
+                ));
+            }
+
             let dest = context.tab_context_ref().curr_tab_ref().cwd().to_path_buf();
             let worker_thread = IoWorkerThread::new(state.file_op, state.paths, dest, options);
             context.worker_context_mut().push_worker(worker_thread);
+
             Ok(())
         }
         _ => Err(AppError::new(
