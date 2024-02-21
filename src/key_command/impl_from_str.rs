@@ -252,7 +252,6 @@ impl std::str::FromStr for Command {
                     "--skip_exist=true" => options.skip_exist = true,
                     "--overwrite=false" => options.overwrite = false,
                     "--skip_exist=false" => options.skip_exist = false,
-                    "--cancel" => options.cancel = true,
                     _ => {
                         return Err(AppError::new(
                             AppErrorKind::UnrecognizedArgument,
@@ -262,6 +261,21 @@ impl std::str::FromStr for Command {
                 }
             }
             Ok(Self::PasteFiles { options })
+        } else if command == CMD_CANCEL_FILES {
+            match arg {
+                "" => Ok(Self::CancelFiles {
+                    options: FileOperationOptions {
+                        overwrite: false,
+                        skip_exist: false,
+                        cancel: true,
+                        permanently: false,
+                    },
+                }),
+                _ => Err(AppError::new(
+                    AppErrorKind::UnrecognizedArgument,
+                    format!("{}: unkown option '{}'", command, arg),
+                )),
+            }
         } else if command == CMD_DELETE_FILES {
             let [mut permanently, mut background, mut noconfirm] = [false; 3];
             for arg in arg.split_whitespace() {
