@@ -262,13 +262,14 @@ impl std::str::FromStr for Command {
             }
             Ok(Self::PasteFiles { options })
         } else if command == CMD_CANCEL_FILES {
+            let default = FileOperationOptions::default();
             match arg {
                 "" => Ok(Self::CancelFiles {
                     options: FileOperationOptions {
-                        overwrite: false,
-                        skip_exist: false,
+                        overwrite: default.overwrite,
+                        skip_exist: default.skip_exist,
                         cancel: true,
-                        permanently: false,
+                        permanently: default.permanently,
                     },
                 }),
                 _ => Err(AppError::new(
