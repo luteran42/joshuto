@@ -62,12 +62,12 @@ where
         println!("{}", termion::clear::All);
         let pager_env = std::env::var("PAGER").unwrap_or_else(|_| String::from("less"));
         let pager_args: Vec<&str> = pager_env.split_whitespace().collect();
-        command.stdout(process::Stdio::piped());
-        if let Some(child_stdout) = command.spawn()?.stdout {
-            let mut pager_command = process::Command::new(pager_args[0]);
-            pager_command.args(&pager_args[1..]);
-            pager_command.stdin(child_stdout);
-            pager_command.status()?;
+
+        if let Some(child_stdout) = command.stdout(process::Stdio::piped()).spawn()?.stdout {
+            process::Command::new(pager_args[0])
+                .args(&pager_args[1..])
+                .stdin(child_stdout)
+                .status()?;
         }
     }
     command.status()?;
