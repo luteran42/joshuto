@@ -7,6 +7,9 @@ use ratatui::widgets::{Paragraph, Widget};
 use crate::config::clean::app::display::tab::TabDisplayOption;
 use crate::fs::{JoshutoDirList, LinkType};
 use crate::util::format;
+use crate::util::style::{
+    mark_selected_style, permanent_selected_style, symlink_invalid_style, symlink_valid_style,
+};
 use crate::util::unix;
 use crate::{THEME_T, TIMEZONE_STR};
 
@@ -44,14 +47,8 @@ impl<'a> Widget for TuiFooter<'a> {
             .fg(Color::LightBlue)
             .add_modifier(THEME_T.selection.modifier);
 
-        let selection_style = Style::default()
-            .fg(THEME_T.selection.fg)
-            .bg(THEME_T.selection.bg)
-            .add_modifier(THEME_T.selection.modifier);
-        let mark_style = Style::default()
-            .fg(THEME_T.mark.fg)
-            .bg(THEME_T.mark.bg)
-            .add_modifier(THEME_T.mark.modifier);
+        let selection_style = permanent_selected_style();
+        let mark_style = mark_selected_style();
         let selected_count = self.dirlist.selected_count();
         let marked_count = self.dirlist.marked_count();
 
@@ -139,15 +136,9 @@ impl<'a> Widget for TuiFooter<'a> {
 
                 if let LinkType::Symlink { target, valid } = entry.metadata.link_type() {
                     let link_style = if *valid {
-                        Style::default()
-                            .fg(THEME_T.link.fg)
-                            .bg(THEME_T.link.bg)
-                            .add_modifier(THEME_T.link.modifier)
+                        symlink_valid_style()
                     } else {
-                        Style::default()
-                            .fg(THEME_T.link_invalid.fg)
-                            .bg(THEME_T.link_invalid.bg)
-                            .add_modifier(THEME_T.link_invalid.modifier)
+                        symlink_invalid_style()
                     };
                     text.push(Span::styled(" -> ", link_style));
                     text.push(Span::styled(target, link_style));

@@ -68,28 +68,28 @@ fn visual_mode_selected_style() -> Style {
         .add_modifier(THEME_T.visual_mode_selection.modifier)
 }
 
-fn permanent_selected_style() -> Style {
+pub fn permanent_selected_style() -> Style {
     Style::default()
         .fg(THEME_T.selection.fg)
         .bg(THEME_T.selection.bg)
         .add_modifier(THEME_T.selection.modifier)
 }
 
-fn mark_selected_style() -> Style {
+pub fn mark_selected_style() -> Style {
     Style::default()
         .fg(THEME_T.mark.fg)
         .bg(THEME_T.mark.bg)
         .add_modifier(THEME_T.mark.modifier)
 }
 
-fn symlink_valid_style() -> Style {
+pub fn symlink_valid_style() -> Style {
     Style::default()
         .fg(THEME_T.link.fg)
         .bg(THEME_T.link.bg)
         .add_modifier(THEME_T.link.modifier)
 }
 
-fn symlink_invalid_style() -> Style {
+pub fn symlink_invalid_style() -> Style {
     Style::default()
         .fg(THEME_T.link_invalid.fg)
         .bg(THEME_T.link_invalid.bg)
