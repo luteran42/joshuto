@@ -38,15 +38,15 @@ bold = true
 
 # Selected files (standard selection)
 [selection]
-fg = "light_yellow"
+fg = "light_green"
 bold = true
 
 # Files selected in current visual mode
 [visual_mode_selection]
-fg = "light_red"
+fg = "light_yellow"
 bold = true
 
-[marked]
+[mark]
 fg = "red"
 bold = true
 
