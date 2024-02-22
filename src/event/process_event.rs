@@ -104,9 +104,9 @@ pub fn process_finished_worker(context: &mut AppContext, res: AppResult<FileOper
             tab.history_mut().remove(observer.dest_path());
         }
         if observer.src_path().exists() {
-            let _ = tab
-                .history_mut()
-                .reload(observer.src_path(), &options, &tab_options);
+            let _ =
+                tab.history_mut()
+                    .reload_no_selection(observer.src_path(), &options, &tab_options);
         } else {
             tab.history_mut().remove(observer.src_path());
         }

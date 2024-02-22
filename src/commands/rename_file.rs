@@ -35,7 +35,7 @@ pub fn _rename_file(
             .clone();
         let history = context.tab_context_mut().curr_tab_mut().history_mut();
         let new_dirlist =
-            create_dirlist_with_history(history, path.as_path(), &options, &tab_options)?;
+            create_dirlist_with_history(history, path.as_path(), &options, &tab_options, true)?;
         history.insert(path, new_dirlist);
     }
     Ok(())

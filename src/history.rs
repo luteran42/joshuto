@@ -36,6 +36,12 @@ pub trait DirectoryHistory {
         options: &DisplayOption,
         tab_options: &TabDisplayOption,
     ) -> io::Result<()>;
+    fn reload_no_selection(
+        &mut self,
+        path: &Path,
+        options: &DisplayOption,
+        tab_options: &TabDisplayOption,
+    ) -> io::Result<()>;
     fn depreciate_all_entries(&mut self);
 
     fn depreciate_entry(&mut self, path: &Path);
@@ -57,7 +63,7 @@ impl DirectoryHistory for JoshutoHistory {
         for curr in path.ancestors() {
             if self.contains_key(curr) {
                 let mut new_dirlist =
-                    create_dirlist_with_history(self, curr, options, tab_options)?;
+                    create_dirlist_with_history(self, curr, options, tab_options, true)?;
                 if let Some(ancestor) = prev.as_ref() {
                     if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
                         new_dirlist.set_index(Some(i), ui_context, options);
@@ -95,7 +101,7 @@ impl DirectoryHistory for JoshutoHistory {
         };
         if need_update {
             let dirlist = if contains_key {
-                create_dirlist_with_history(self, path, options, tab_options)?
+                create_dirlist_with_history(self, path, options, tab_options, true)?
             } else {
                 JoshutoDirList::from_path(path.to_path_buf(), options, tab_options)?
             };
@@ -111,7 +117,7 @@ impl DirectoryHistory for JoshutoHistory {
         tab_options: &TabDisplayOption,
     ) -> io::Result<()> {
         let dirlist = if self.contains_key(path) {
-            create_dirlist_with_history(self, path, options, tab_options)?
+            create_dirlist_with_history(self, path, options, tab_options, true)?
         } else {
             JoshutoDirList::from_path(path.to_path_buf(), options, tab_options)?
         };
@@ -125,7 +131,18 @@ impl DirectoryHistory for JoshutoHistory {
         options: &DisplayOption,
         tab_options: &TabDisplayOption,
     ) -> io::Result<()> {
-        let dirlist = create_dirlist_with_history(self, path, options, tab_options)?;
+        let dirlist = create_dirlist_with_history(self, path, options, tab_options, true)?;
+        self.insert(path.to_path_buf(), dirlist);
+        Ok(())
+    }
+
+    fn reload_no_selection(
+        &mut self,
+        path: &Path,
+        options: &DisplayOption,
+        tab_options: &TabDisplayOption,
+    ) -> io::Result<()> {
+        let dirlist = create_dirlist_with_history(self, path, options, tab_options, false)?;
         self.insert(path.to_path_buf(), dirlist);
         Ok(())
     }
@@ -156,6 +173,7 @@ pub fn create_dirlist_with_history(
     path: &Path,
     options: &DisplayOption,
     tab_options: &TabDisplayOption,
+    preserve_selection: bool,
 ) -> io::Result<JoshutoDirList> {
     let filter_func = options.filter_func();
     let mut contents = read_directory(path, filter_func, options, tab_options)?;
@@ -176,12 +194,14 @@ pub fn create_dirlist_with_history(
         );
         for entry in contents.iter_mut() {
             if let Some(former_entry) = former_entries_by_file_name.get(entry.file_name()) {
-                if former_entry.is_marked() {
-                    entry.set_mark_selected(false);
-                } else if former_entry.is_permanent_selected() {
+                if preserve_selection {
+                    entry.set_mark_selected(former_entry.is_marked());
                     entry.set_permanent_selected(former_entry.is_permanent_selected());
-                } else {
                     entry.set_visual_mode_selected(former_entry.is_visual_mode_selected());
+                } else {
+                    entry.set_mark_selected(false);
+                    entry.set_permanent_selected(false);
+                    entry.set_visual_mode_selected(false);
                 }
             }
         }

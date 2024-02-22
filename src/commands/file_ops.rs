@@ -98,7 +98,6 @@ pub fn paste(context: &mut AppContext, options: FileOperationOptions) -> AppResu
             let dest = context.tab_context_ref().curr_tab_ref().cwd().to_path_buf();
             let worker_thread = IoWorkerThread::new(state.file_op, state.paths, dest, options);
             context.worker_context_mut().push_worker(worker_thread);
-
             Ok(())
         }
         _ => Err(AppError::new(
