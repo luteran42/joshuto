@@ -7,6 +7,7 @@ use crate::fs::JoshutoDirList;
 use crate::io::{FileOperation, FileOperationOptions, IoWorkerThread};
 
 fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<()> {
+    mark_entries(context);
     let list = context.tab_context_ref().curr_tab_ref().curr_list_ref()?;
     if list.iter().any(|entry| entry.is_marked()) {
         let selected = list.get_selected_paths();
@@ -21,15 +22,18 @@ fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<(
     }
 }
 
-fn mark_entries(curr_tab: &mut JoshutoDirList) {
-    if curr_tab.selected_count() != 0 {
-        curr_tab.iter_mut().for_each(|entry| {
-            if entry.is_permanent_selected() {
-                entry.set_mark_selected(true);
-            }
-        })
-    } else if let Some(entry) = curr_tab.curr_entry_mut() {
-        entry.set_mark_selected(true);
+fn mark_entries(context: &mut AppContext) {
+    let tab = context.tab_context_mut().curr_tab_mut();
+    if let Some(curr_list) = tab.curr_list_mut() {
+        if curr_list.selected_count() != 0 {
+            curr_list.iter_mut().for_each(|entry| {
+                if entry.is_permanent_selected() {
+                    entry.set_mark_selected(true);
+                }
+            })
+        } else if let Some(entry) = curr_list.curr_entry_mut() {
+            entry.set_mark_selected(true);
+        }
     }
 }
 
@@ -65,41 +69,21 @@ fn unmark_and_cancel_all(context: &mut AppContext) -> AppResult {
 }
 
 pub fn cut(context: &mut AppContext) -> AppResult {
-    let curr_tab = context.tab_context_mut().curr_tab_mut();
-    if let Some(curr_list) = curr_tab.curr_list_mut() {
-        mark_entries(curr_list);
-    }
-
     new_local_state(context, FileOperation::Cut);
     Ok(())
 }
 
 pub fn copy(context: &mut AppContext) -> AppResult {
-    let curr_tab = context.tab_context_mut().curr_tab_mut();
-    if let Some(curr_list) = curr_tab.curr_list_mut() {
-        mark_entries(curr_list);
-    }
-
     new_local_state(context, FileOperation::Copy);
     Ok(())
 }
 
 pub fn symlink_absolute(context: &mut AppContext) -> AppResult {
-    let curr_tab = context.tab_context_mut().curr_tab_mut();
-    if let Some(curr_list) = curr_tab.curr_list_mut() {
-        mark_entries(curr_list);
-    }
-
     new_local_state(context, FileOperation::Symlink { relative: false });
     Ok(())
 }
 
 pub fn symlink_relative(context: &mut AppContext) -> AppResult {
-    let curr_tab = context.tab_context_mut().curr_tab_mut();
-    if let Some(curr_list) = curr_tab.curr_list_mut() {
-        mark_entries(curr_list);
-    }
-
     new_local_state(context, FileOperation::Symlink { relative: true });
     Ok(())
 }
