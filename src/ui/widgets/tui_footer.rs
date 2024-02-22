@@ -48,7 +48,12 @@ impl<'a> Widget for TuiFooter<'a> {
             .fg(THEME_T.selection.fg)
             .bg(THEME_T.selection.bg)
             .add_modifier(THEME_T.selection.modifier);
+        let mark_style = Style::default()
+            .fg(THEME_T.mark.fg)
+            .bg(THEME_T.mark.bg)
+            .add_modifier(THEME_T.mark.modifier);
         let selected_count = self.dirlist.selected_count();
+        let marked_count = self.dirlist.marked_count();
 
         match self.dirlist.get_index() {
             Some(i) if i < self.dirlist.len() => {
@@ -116,6 +121,19 @@ impl<'a> Widget for TuiFooter<'a> {
                             " ".to_string()
                         },
                         selection_style,
+                    ),
+                    Span::raw(if marked_count > 0 {
+                        " | ".to_string()
+                    } else {
+                        "".to_string()
+                    }),
+                    Span::styled(
+                        if marked_count > 0 {
+                            format!("{} marked", marked_count)
+                        } else {
+                            " ".to_string()
+                        },
+                        mark_style,
                     ),
                 ];
 
