@@ -48,9 +48,13 @@ impl<'a> Widget for TuiFooter<'a> {
             .add_modifier(THEME_T.selection.modifier);
 
         let selection_style = permanent_selected_style();
-        let mark_style = mark_selected_style();
+        let mark_cut_style = mark_selected_style("cut");
+        let mark_copy_style = mark_selected_style("copy");
+        let mark_sym_style = mark_selected_style("symlink");
         let selected_count = self.dirlist.selected_count();
-        let marked_count = self.dirlist.marked_count();
+        let marked_cut_count = self.dirlist.marked_cut_count();
+        let marked_copy_count = self.dirlist.marked_copy_count();
+        let marked_sym_count = self.dirlist.marked_sym_count();
 
         match self.dirlist.get_index() {
             Some(i) if i < self.dirlist.len() => {
@@ -115,22 +119,48 @@ impl<'a> Widget for TuiFooter<'a> {
                         if selected_count > 0 {
                             format!("{} selected", selected_count)
                         } else {
-                            " ".to_string()
+                            "".to_string()
                         },
                         selection_style,
                     ),
-                    Span::raw(if marked_count > 0 {
+                    Span::raw(if marked_cut_count > 0 {
                         " | ".to_string()
                     } else {
                         "".to_string()
                     }),
                     Span::styled(
-                        if marked_count > 0 {
-                            format!("{} marked", marked_count)
+                        if marked_cut_count > 0 {
+                            format!("{} cut", marked_cut_count)
                         } else {
-                            " ".to_string()
+                            "".to_string()
                         },
-                        mark_style,
+                        mark_cut_style,
+                    ),
+                    Span::raw(if marked_copy_count > 0 {
+                        " | ".to_string()
+                    } else {
+                        "".to_string()
+                    }),
+                    Span::styled(
+                        if marked_copy_count > 0 {
+                            format!("{} copied", marked_copy_count)
+                        } else {
+                            "".to_string()
+                        },
+                        mark_copy_style,
+                    ),
+                    Span::raw(if marked_sym_count > 0 {
+                        " | ".to_string()
+                    } else {
+                        "".to_string()
+                    }),
+                    Span::styled(
+                        if marked_sym_count > 0 {
+                            format!("{} symlinked", marked_sym_count)
+                        } else {
+                            "".to_string()
+                        },
+                        mark_sym_style,
                     ),
                 ];
 

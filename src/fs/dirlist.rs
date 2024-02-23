@@ -222,8 +222,14 @@ impl JoshutoDirList {
         self.contents.iter().filter(|e| e.is_selected()).count()
     }
 
-    pub fn marked_count(&self) -> usize {
-        self.contents.iter().filter(|e| e.is_marked()).count()
+    pub fn marked_cut_count(&self) -> usize {
+        self.contents.iter().filter(|e| e.is_marked_cut()).count()
+    }
+    pub fn marked_copy_count(&self) -> usize {
+        self.contents.iter().filter(|e| e.is_marked_copy()).count()
+    }
+    pub fn marked_sym_count(&self) -> usize {
+        self.contents.iter().filter(|e| e.is_marked_sym()).count()
     }
 
     pub fn iter_selected(&self) -> impl Iterator<Item = &JoshutoDirEntry> {

@@ -7,32 +7,45 @@ use crate::fs::JoshutoDirList;
 use crate::io::{FileOperation, FileOperationOptions, IoWorkerThread};
 
 fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<()> {
-    mark_entries(context);
     let list = context.tab_context_ref().curr_tab_ref().curr_list_ref()?;
-    if list.iter().any(|entry| entry.is_marked()) {
-        let selected = list.get_selected_paths();
-        let mut local_state = LocalStateContext::new();
-        local_state.set_paths(selected.into_iter());
-        local_state.set_file_op(file_op);
+    let selected = list.get_selected_paths();
+    let mut local_state = LocalStateContext::new();
+    local_state.set_paths(selected.into_iter());
+    local_state.set_file_op(file_op);
 
-        context.set_local_state(local_state);
-        Some(())
-    } else {
-        None
-    }
+    context.set_local_state(local_state);
+    Some(())
 }
 
-fn mark_entries(context: &mut AppContext) {
+fn mark_entries(context: &mut AppContext, op: &str) {
     let tab = context.tab_context_mut().curr_tab_mut();
+
     if let Some(curr_list) = tab.curr_list_mut() {
-        if curr_list.selected_count() != 0 {
-            curr_list.iter_mut().for_each(|entry| {
-                if entry.is_permanent_selected() {
-                    entry.set_mark_selected(true);
+        curr_list.iter_mut().for_each(|entry| {
+            entry.set_mark_cut_selected(false);
+            entry.set_mark_copy_selected(false);
+            entry.set_mark_sym_selected(false);
+        });
+
+        match curr_list.selected_count() {
+            count if count != 0 => {
+                curr_list.iter_mut().for_each(|entry| match op {
+                    "cut" if entry.is_permanent_selected() => entry.set_mark_cut_selected(true),
+                    "copy" if entry.is_permanent_selected() => entry.set_mark_copy_selected(true),
+                    "symlink" if entry.is_permanent_selected() => entry.set_mark_sym_selected(true),
+                    _ => {}
+                });
+            }
+            _ => {
+                if let Some(entry) = curr_list.curr_entry_mut() {
+                    match op {
+                        "cut" => entry.set_mark_cut_selected(true),
+                        "copy" => entry.set_mark_copy_selected(true),
+                        "symlink" => entry.set_mark_sym_selected(true),
+                        _ => {}
+                    }
                 }
-            })
-        } else if let Some(entry) = curr_list.curr_entry_mut() {
-            entry.set_mark_selected(true);
+            }
         }
     }
 }
@@ -40,12 +53,22 @@ fn mark_entries(context: &mut AppContext) {
 fn unmark_entries(curr_tab: &mut JoshutoDirList) {
     if curr_tab.selected_count() != 0 {
         curr_tab.iter_mut().for_each(|entry| {
-            if entry.is_marked() {
-                entry.set_mark_selected(false);
+            if entry.is_marked_cut() {
+                entry.set_mark_cut_selected(false)
+            } else if entry.is_marked_copy() {
+                entry.set_mark_copy_selected(false)
+            } else if entry.is_marked_sym() {
+                entry.set_mark_sym_selected(false)
             }
         })
     } else if let Some(entry) = curr_tab.curr_entry_mut() {
-        entry.set_mark_selected(false);
+        if entry.is_marked_cut() {
+            entry.set_mark_cut_selected(false)
+        } else if entry.is_marked_copy() {
+            entry.set_mark_copy_selected(false)
+        } else if entry.is_marked_sym() {
+            entry.set_mark_sym_selected(false)
+        }
     }
 }
 
@@ -69,21 +92,25 @@ fn unmark_and_cancel_all(context: &mut AppContext) -> AppResult {
 }
 
 pub fn cut(context: &mut AppContext) -> AppResult {
+    mark_entries(context, "cut");
     new_local_state(context, FileOperation::Cut);
     Ok(())
 }
 
 pub fn copy(context: &mut AppContext) -> AppResult {
+    mark_entries(context, "copy");
     new_local_state(context, FileOperation::Copy);
     Ok(())
 }
 
 pub fn symlink_absolute(context: &mut AppContext) -> AppResult {
+    mark_entries(context, "symlink");
     new_local_state(context, FileOperation::Symlink { relative: false });
     Ok(())
 }
 
 pub fn symlink_relative(context: &mut AppContext) -> AppResult {
+    mark_entries(context, "symlink");
     new_local_state(context, FileOperation::Symlink { relative: true });
     Ok(())
 }

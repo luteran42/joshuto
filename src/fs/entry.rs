@@ -19,7 +19,9 @@ pub struct JoshutoDirEntry {
     /// Temporarily selected by the visual mode range
     visual_mode_selected: bool,
     /// Marked for file ops
-    marked: bool,
+    marked_cut: bool,
+    marked_copy: bool,
+    marked_sym: bool,
 }
 
 impl JoshutoDirEntry {
@@ -62,7 +64,9 @@ impl JoshutoDirEntry {
             metadata,
             permanent_selected: false,
             visual_mode_selected: false,
-            marked: false,
+            marked_cut: false,
+            marked_copy: false,
+            marked_sym: false,
         })
     }
 
@@ -83,7 +87,11 @@ impl JoshutoDirEntry {
     }
 
     pub fn is_selected(&self) -> bool {
-        self.permanent_selected || self.visual_mode_selected || self.marked
+        self.permanent_selected
+            || self.visual_mode_selected
+            || self.marked_cut
+            || self.marked_copy
+            || self.marked_sym
     }
 
     pub fn is_permanent_selected(&self) -> bool {
@@ -94,8 +102,14 @@ impl JoshutoDirEntry {
         self.visual_mode_selected
     }
 
-    pub fn is_marked(&self) -> bool {
-        self.marked
+    pub fn is_marked_cut(&self) -> bool {
+        self.marked_cut
+    }
+    pub fn is_marked_copy(&self) -> bool {
+        self.marked_copy
+    }
+    pub fn is_marked_sym(&self) -> bool {
+        self.marked_sym
     }
 
     pub fn set_permanent_selected(&mut self, selected: bool) {
@@ -106,8 +120,14 @@ impl JoshutoDirEntry {
         self.visual_mode_selected = visual_mode_selected;
     }
 
-    pub fn set_mark_selected(&mut self, mark_selected: bool) {
-        self.marked = mark_selected;
+    pub fn set_mark_cut_selected(&mut self, mark_selected: bool) {
+        self.marked_cut = mark_selected;
+    }
+    pub fn set_mark_copy_selected(&mut self, mark_selected: bool) {
+        self.marked_copy = mark_selected;
+    }
+    pub fn set_mark_sym_selected(&mut self, mark_selected: bool) {
+        self.marked_sym = mark_selected;
     }
 
     pub fn get_ext(&self) -> &str {

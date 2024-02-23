@@ -30,8 +30,14 @@ pub fn entry_style(entry: &JoshutoDirEntry) -> Style {
     let filetype = metadata.file_type();
     let linktype = metadata.link_type();
 
-    if entry.is_marked() {
-        return mark_selected_style();
+    if entry.is_marked_cut() {
+        return mark_selected_style("cut");
+    }
+    if entry.is_marked_copy() {
+        return mark_selected_style("copy");
+    }
+    if entry.is_marked_sym() {
+        return mark_selected_style("symlink");
     }
     if entry.is_permanent_selected() {
         return permanent_selected_style();
@@ -75,11 +81,15 @@ pub fn permanent_selected_style() -> Style {
         .add_modifier(THEME_T.selection.modifier)
 }
 
-pub fn mark_selected_style() -> Style {
-    Style::default()
-        .fg(THEME_T.mark.fg)
-        .bg(THEME_T.mark.bg)
-        .add_modifier(THEME_T.mark.modifier)
+pub fn mark_selected_style(file_op: &str) -> Style {
+    if let Some(mark) = THEME_T.mark.get(file_op) {
+        Style::default()
+            .fg(mark.fg)
+            .bg(mark.bg)
+            .add_modifier(mark.modifier)
+    } else {
+        Style::default()
+    }
 }
 
 pub fn symlink_valid_style() -> Style {
