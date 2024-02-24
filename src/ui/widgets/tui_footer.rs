@@ -130,7 +130,7 @@ impl<'a> Widget for TuiFooter<'a> {
                     }),
                     Span::styled(
                         if marked_cut_count > 0 {
-                            format!("{} cut", marked_cut_count)
+                            format!("{} marked -> cut", marked_cut_count)
                         } else {
                             "".to_string()
                         },
@@ -143,7 +143,7 @@ impl<'a> Widget for TuiFooter<'a> {
                     }),
                     Span::styled(
                         if marked_copy_count > 0 {
-                            format!("{} copied", marked_copy_count)
+                            format!("{} marked -> copy", marked_copy_count)
                         } else {
                             "".to_string()
                         },
@@ -156,7 +156,7 @@ impl<'a> Widget for TuiFooter<'a> {
                     }),
                     Span::styled(
                         if marked_sym_count > 0 {
-                            format!("{} symlinked", marked_sym_count)
+                            format!("{} marked -> symlink", marked_sym_count)
                         } else {
                             "".to_string()
                         },
