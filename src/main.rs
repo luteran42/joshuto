@@ -33,6 +33,7 @@ use config::clean::mimetype::AppProgramRegistry;
 use config::clean::theme::AppTheme;
 use config::{ConfigType, TomlConfigFile};
 use util::cwd;
+use whoami::fallible;
 
 use crate::commands::quit::QuitAction;
 
@@ -75,8 +76,8 @@ lazy_static! {
     static ref ICONS_T: Icons = Icons::get_config();
 
     static ref HOME_DIR: Option<PathBuf> = dirs_next::home_dir();
-    static ref USERNAME: String = whoami::username();
-    static ref HOSTNAME: String = whoami::hostname();
+    static ref USERNAME: String = fallible::username().unwrap();
+    static ref HOSTNAME: String = fallible::hostname().unwrap();
 
     static ref TIMEZONE_STR: String = {
         let offset = chrono::Local::now().offset().local_minus_utc() / 3600;
