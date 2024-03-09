@@ -17,7 +17,7 @@ fn new_local_state(context: &mut AppContext, file_op: FileOperation) -> Option<(
     Some(())
 }
 
-fn mark_entries(context: &mut AppContext, op: &str) {
+fn mark_entries(context: &mut AppContext, op: FileOperation) {
     let tab = context.tab_context_mut().curr_tab_mut();
 
     if let Some(curr_list) = tab.curr_list_mut() {
@@ -30,18 +30,24 @@ fn mark_entries(context: &mut AppContext, op: &str) {
         match curr_list.selected_count() {
             count if count != 0 => {
                 curr_list.iter_mut().for_each(|entry| match op {
-                    "cut" if entry.is_permanent_selected() => entry.set_mark_cut_selected(true),
-                    "copy" if entry.is_permanent_selected() => entry.set_mark_copy_selected(true),
-                    "symlink" if entry.is_permanent_selected() => entry.set_mark_sym_selected(true),
+                    FileOperation::Cut if entry.is_permanent_selected() => {
+                        entry.set_mark_cut_selected(true)
+                    }
+                    FileOperation::Copy if entry.is_permanent_selected() => {
+                        entry.set_mark_copy_selected(true)
+                    }
+                    FileOperation::Symlink { .. } if entry.is_permanent_selected() => {
+                        entry.set_mark_sym_selected(true)
+                    }
                     _ => {}
                 });
             }
             _ => {
                 if let Some(entry) = curr_list.curr_entry_mut() {
                     match op {
-                        "cut" => entry.set_mark_cut_selected(true),
-                        "copy" => entry.set_mark_copy_selected(true),
-                        "symlink" => entry.set_mark_sym_selected(true),
+                        FileOperation::Cut => entry.set_mark_cut_selected(true),
+                        FileOperation::Copy => entry.set_mark_copy_selected(true),
+                        FileOperation::Symlink { .. } => entry.set_mark_sym_selected(true),
                         _ => {}
                     }
                 }
@@ -91,27 +97,29 @@ fn unmark_and_cancel_all(context: &mut AppContext) -> AppResult {
     ))
 }
 
+fn perform_file_operation(context: &mut AppContext, op: FileOperation) -> AppResult {
+    mark_entries(context, op);
+    new_local_state(context, op);
+    Ok(())
+}
+
 pub fn cut(context: &mut AppContext) -> AppResult {
-    mark_entries(context, "cut");
-    new_local_state(context, FileOperation::Cut);
+    perform_file_operation(context, FileOperation::Cut)?;
     Ok(())
 }
 
 pub fn copy(context: &mut AppContext) -> AppResult {
-    mark_entries(context, "copy");
-    new_local_state(context, FileOperation::Copy);
+    perform_file_operation(context, FileOperation::Copy)?;
     Ok(())
 }
 
 pub fn symlink_absolute(context: &mut AppContext) -> AppResult {
-    mark_entries(context, "symlink");
-    new_local_state(context, FileOperation::Symlink { relative: false });
+    perform_file_operation(context, FileOperation::Symlink { relative: false })?;
     Ok(())
 }
 
 pub fn symlink_relative(context: &mut AppContext) -> AppResult {
-    mark_entries(context, "symlink");
-    new_local_state(context, FileOperation::Symlink { relative: true });
+    perform_file_operation(context, FileOperation::Symlink { relative: true })?;
     Ok(())
 }
 
