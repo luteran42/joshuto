@@ -201,11 +201,7 @@ pub fn create_dirlist_with_history(
                     entry.set_permanent_selected(former_entry.is_permanent_selected());
                     entry.set_visual_mode_selected(former_entry.is_visual_mode_selected());
                 } else {
-                    entry.set_mark_cut_selected(false);
-                    entry.set_mark_copy_selected(false);
-                    entry.set_mark_sym_selected(false);
-                    entry.set_permanent_selected(false);
-                    entry.set_visual_mode_selected(false);
+                    entry.set_all_selected(false);
                 }
             }
         }

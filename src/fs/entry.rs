@@ -112,6 +112,14 @@ impl JoshutoDirEntry {
         self.marked_sym
     }
 
+    pub fn set_all_selected(&mut self, selected: bool) {
+        self.set_permanent_selected(selected);
+        self.set_visual_mode_selected(selected);
+        self.set_mark_cut_selected(selected);
+        self.set_mark_copy_selected(selected);
+        self.set_mark_sym_selected(selected);
+    }
+
     pub fn set_permanent_selected(&mut self, selected: bool) {
         self.permanent_selected = selected;
     }
