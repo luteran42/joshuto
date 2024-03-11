@@ -51,7 +51,7 @@ impl DirectoryHistory for JoshutoHistory {
         };
         if need_update {
             let dirlist = if contains_key {
-                create_dirlist_with_history(self, path, options, tab_options, true)?
+                create_dirlist_with_history(self, path, options, tab_options)?
             } else {
                 JoshutoDirList::from_path(path.to_path_buf(), options, tab_options)?
             };
@@ -67,7 +67,7 @@ impl DirectoryHistory for JoshutoHistory {
         tab_options: &TabDisplayOption,
     ) -> io::Result<()> {
         let dirlist = if self.contains_key(path) {
-            create_dirlist_with_history(self, path, options, tab_options, true)?
+            create_dirlist_with_history(self, path, options, tab_options)?
         } else {
             JoshutoDirList::from_path(path.to_path_buf(), options, tab_options)?
         };
@@ -101,7 +101,6 @@ pub fn create_dirlist_with_history(
     path: &Path,
     options: &DisplayOption,
     tab_options: &TabDisplayOption,
-    preserve_selection: bool,
 ) -> io::Result<JoshutoDirList> {
     let filter_func = options.filter_func();
     let mut contents = read_directory(path, filter_func, options, tab_options)?;
@@ -122,7 +121,7 @@ pub fn create_dirlist_with_history(
         );
         for entry in contents.iter_mut() {
             if let Some(former_entry) = former_entries_by_file_name.get(entry.file_name()) {
-                if preserve_selection {
+                if options._preserve_selection {
                     entry.set_mark_cut_selected(former_entry.is_marked_cut());
                     entry.set_mark_copy_selected(former_entry.is_marked_copy());
                     entry.set_mark_sym_selected(former_entry.is_marked_sym());
@@ -245,7 +244,7 @@ pub fn generate_entries_to_root(
     for curr in path.ancestors() {
         if history.contains_key(curr) {
             let mut new_dirlist =
-                create_dirlist_with_history(history, curr, display_options, tab_options, true)?;
+                create_dirlist_with_history(history, curr, display_options, tab_options)?;
             if let Some(ancestor) = prev.as_ref() {
                 if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
                     new_dirlist.set_index(Some(i), ui_context, display_options);

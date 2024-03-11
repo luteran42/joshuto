@@ -25,7 +25,6 @@ pub fn soft_reload(context: &mut AppContext, id: &Uuid) -> std::io::Result<()> {
                     curr_list.file_path(),
                     display_options,
                     tab_options,
-                    true,
                 )?;
                 dirlists.push(new_dirlist);
             }
@@ -46,11 +45,7 @@ pub fn soft_reload_curr_tab(context: &mut AppContext) -> std::io::Result<()> {
     soft_reload(context, &curr_tab_id)
 }
 
-pub fn reload(
-    context: &mut AppContext,
-    id: &Uuid,
-    preserve_selection: bool,
-) -> std::io::Result<()> {
+pub fn reload(context: &mut AppContext, id: &Uuid) -> std::io::Result<()> {
     let mut dirlists = Vec::with_capacity(3);
     if let Some(curr_tab) = context.tab_context_ref().tab_ref(id) {
         let display_options = context.config_ref().display_options_ref();
@@ -69,7 +64,6 @@ pub fn reload(
                 curr_list.file_path(),
                 display_options,
                 tab_options,
-                true,
             )?;
             dirlists.push(new_dirlist);
         }
@@ -82,16 +76,14 @@ pub fn reload(
     {
         history.insert_entries(dirlists);
     }
-    if preserve_selection {
-        context
-            .message_queue_mut()
-            .push_success("Directory listing reloaded!".to_string());
-    }
+    context
+        .message_queue_mut()
+        .push_success("Directory listing reloaded!".to_string());
     Ok(())
 }
 
 pub fn reload_dirlist(context: &mut AppContext) -> AppResult {
     let curr_tab_id = context.tab_context_ref().curr_tab_id();
-    reload(context, &curr_tab_id, true)?;
+    reload(context, &curr_tab_id)?;
     Ok(())
 }
