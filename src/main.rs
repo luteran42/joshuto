@@ -76,8 +76,9 @@ lazy_static! {
     static ref ICONS_T: Icons = Icons::get_config();
 
     static ref HOME_DIR: Option<PathBuf> = dirs_next::home_dir();
-    static ref USERNAME: String = fallible::username().unwrap();
-    static ref HOSTNAME: String = fallible::hostname().unwrap();
+
+    static ref USERNAME: String = whoami::fallible::realname().unwrap_or("No Username".to_string());
+    static ref HOSTNAME: String = whoami::fallible::hostname().unwrap_or("No Hostname".to_string());
 
     static ref TIMEZONE_STR: String = {
         let offset = chrono::Local::now().offset().local_minus_utc() / 3600;
@@ -158,6 +159,7 @@ fn run_main(args: Args) -> Result<i32, AppError> {
     // make sure all configs have been loaded before starting
     let config = AppConfig::get_config();
     let keymap = AppKeyMapping::get_config();
+
     lazy_static::initialize(&THEME_T);
     lazy_static::initialize(&MIMETYPE_T);
     lazy_static::initialize(&PREVIEW_T);
@@ -168,9 +170,10 @@ fn run_main(args: Args) -> Result<i32, AppError> {
     lazy_static::initialize(&USERNAME);
     lazy_static::initialize(&HOSTNAME);
 
+    let mouse_support = config.mouse_support;
     let mut context = AppContext::new(config, args.clone());
     {
-        let mut backend: ui::AppBackend = ui::AppBackend::new(context.config_ref().mouse_support)?;
+        let mut backend: ui::AppBackend = ui::AppBackend::new(mouse_support)?;
         run::run_loop(&mut backend, &mut context, keymap)?;
     }
     run_quit(&args, &context)?;

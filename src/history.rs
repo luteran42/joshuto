@@ -11,13 +11,7 @@ use crate::context::UiContext;
 use crate::fs::{JoshutoDirEntry, JoshutoDirList, JoshutoMetadata};
 
 pub trait DirectoryHistory {
-    fn populate_to_root(
-        &mut self,
-        path: &Path,
-        ui_context: &UiContext,
-        options: &DisplayOption,
-        tab_options: &TabDisplayOption,
-    ) -> io::Result<()>;
+    fn insert_entries(&mut self, entries: Vec<JoshutoDirList>);
     fn create_or_soft_update(
         &mut self,
         path: &Path,
@@ -25,18 +19,6 @@ pub trait DirectoryHistory {
         tab_options: &TabDisplayOption,
     ) -> io::Result<()>;
     fn create_or_reload(
-        &mut self,
-        path: &Path,
-        options: &DisplayOption,
-        tab_options: &TabDisplayOption,
-    ) -> io::Result<()>;
-    fn reload(
-        &mut self,
-        path: &Path,
-        options: &DisplayOption,
-        tab_options: &TabDisplayOption,
-    ) -> io::Result<()>;
-    fn reload_no_selection(
         &mut self,
         path: &Path,
         options: &DisplayOption,
@@ -50,42 +32,10 @@ pub trait DirectoryHistory {
 pub type JoshutoHistory = HashMap<PathBuf, JoshutoDirList>;
 
 impl DirectoryHistory for JoshutoHistory {
-    fn populate_to_root(
-        &mut self,
-        path: &Path,
-        ui_context: &UiContext,
-        options: &DisplayOption,
-        tab_options: &TabDisplayOption,
-    ) -> io::Result<()> {
-        let mut dirlists = Vec::new();
-
-        let mut prev: Option<&Path> = None;
-        for curr in path.ancestors() {
-            if self.contains_key(curr) {
-                let mut new_dirlist =
-                    create_dirlist_with_history(self, curr, options, tab_options, true)?;
-                if let Some(ancestor) = prev.as_ref() {
-                    if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
-                        new_dirlist.set_index(Some(i), ui_context, options);
-                    }
-                }
-                dirlists.push(new_dirlist);
-            } else {
-                let mut new_dirlist =
-                    JoshutoDirList::from_path(curr.to_path_buf().clone(), options, tab_options)?;
-                if let Some(ancestor) = prev.as_ref() {
-                    if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
-                        new_dirlist.set_index(Some(i), ui_context, options);
-                    }
-                }
-                dirlists.push(new_dirlist);
-            }
-            prev = Some(curr);
-        }
-        for dirlist in dirlists {
+    fn insert_entries(&mut self, entries: Vec<JoshutoDirList>) {
+        for dirlist in entries {
             self.insert(dirlist.file_path().to_path_buf(), dirlist);
         }
-        Ok(())
     }
 
     fn create_or_soft_update(
@@ -121,28 +71,6 @@ impl DirectoryHistory for JoshutoHistory {
         } else {
             JoshutoDirList::from_path(path.to_path_buf(), options, tab_options)?
         };
-        self.insert(path.to_path_buf(), dirlist);
-        Ok(())
-    }
-
-    fn reload(
-        &mut self,
-        path: &Path,
-        options: &DisplayOption,
-        tab_options: &TabDisplayOption,
-    ) -> io::Result<()> {
-        let dirlist = create_dirlist_with_history(self, path, options, tab_options, true)?;
-        self.insert(path.to_path_buf(), dirlist);
-        Ok(())
-    }
-
-    fn reload_no_selection(
-        &mut self,
-        path: &Path,
-        options: &DisplayOption,
-        tab_options: &TabDisplayOption,
-    ) -> io::Result<()> {
-        let dirlist = create_dirlist_with_history(self, path, options, tab_options, false)?;
         self.insert(path.to_path_buf(), dirlist);
         Ok(())
     }
@@ -270,7 +198,7 @@ pub fn create_dirlist_with_history(
 pub fn read_directory<F>(
     path: &Path,
     filter_func: F,
-    options: &DisplayOption,
+    display_options: &DisplayOption,
     tab_options: &TabDisplayOption,
 ) -> io::Result<Vec<JoshutoDirEntry>>
 where
@@ -286,7 +214,7 @@ where
         .into_iter()
         .filter_entry(|e| {
             if e.path().to_str().cmp(&path.to_str()).is_ne() {
-                filter_func(e, options, &dirlist_opts)
+                filter_func(e, display_options, &dirlist_opts)
             } else {
                 true
             }
@@ -298,8 +226,46 @@ where
                 true
             }
         })
-        .filter_map(|res| JoshutoDirEntry::from(&res.ok()?, path, options).ok())
+        .filter_map(|res| JoshutoDirEntry::from(&res.ok()?, path, display_options).ok())
         .collect();
 
     Ok(results)
+}
+
+pub fn generate_entries_to_root(
+    path: &Path,
+    history: &JoshutoHistory,
+    ui_context: &UiContext,
+    display_options: &DisplayOption,
+    tab_options: &TabDisplayOption,
+) -> io::Result<Vec<JoshutoDirList>> {
+    let mut dirlists = Vec::new();
+
+    let mut prev: Option<&Path> = None;
+    for curr in path.ancestors() {
+        if history.contains_key(curr) {
+            let mut new_dirlist =
+                create_dirlist_with_history(history, curr, display_options, tab_options)?;
+            if let Some(ancestor) = prev.as_ref() {
+                if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
+                    new_dirlist.set_index(Some(i), ui_context, display_options);
+                }
+            }
+            dirlists.push(new_dirlist);
+        } else {
+            let mut new_dirlist = JoshutoDirList::from_path(
+                curr.to_path_buf().clone(),
+                display_options,
+                tab_options,
+            )?;
+            if let Some(ancestor) = prev.as_ref() {
+                if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
+                    new_dirlist.set_index(Some(i), ui_context, display_options);
+                }
+            }
+            dirlists.push(new_dirlist);
+        }
+        prev = Some(curr);
+    }
+    Ok(dirlists)
 }

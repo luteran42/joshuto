@@ -6,7 +6,7 @@ use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
 use ratatui_image::Image;
 
-use crate::context::AppContext;
+use crate::context::{AppContext, PreviewContext, TabContext};
 use crate::preview::preview_dir::PreviewDirState;
 use crate::preview::preview_file::PreviewFileState;
 use crate::ui;
@@ -143,14 +143,14 @@ impl<'a> Widget for TuiFolderView<'a> {
             Constraint::Ratio(0, _) => {}
             _ => {
                 if let Some(list) = curr_tab.parent_list_ref().as_ref() {
-                    TuiDirList::new(list, true).render(layout_rect[0], buf);
+                    TuiDirList::new(config, list, true).render(layout_rect[0], buf);
                 }
             }
         }
 
         // render current view
         if let Some(list) = curr_list.as_ref() {
-            TuiDirListDetailed::new(list, display_options, curr_tab.option_ref(), true)
+            TuiDirListDetailed::new(config, list, display_options, curr_tab.option_ref(), true)
                 .render(layout_rect[1], buf);
 
             let footer_area = Self::footer_area(&area);
@@ -185,7 +185,7 @@ impl<'a> Widget for TuiFolderView<'a> {
         }
 
         if let Some(list) = child_list.as_ref() {
-            TuiDirList::new(list, true).render(layout_rect[2], buf);
+            TuiDirList::new(config, list, true).render(layout_rect[2], buf);
         } else if let Some(entry) = curr_entry {
             match curr_tab.history_metadata_ref().get(entry.file_path()) {
                 Some(PreviewDirState::Loading) => {
@@ -208,7 +208,11 @@ impl<'a> Widget for TuiFolderView<'a> {
                     if let Some(PreviewFileState::Success(data)) =
                         preview_context.previews_ref().get(entry.file_path())
                     {
-                        let preview_area = calculate_preview(self.context, layout_rect[2]);
+                        let preview_area = calculate_preview(
+                            self.context.tab_context_ref(),
+                            self.context.preview_context_ref(),
+                            layout_rect[2],
+                        );
                         if let Some(preview_area) = preview_area {
                             let area = Rect {
                                 x: preview_area.preview_area.x,
@@ -324,9 +328,12 @@ pub fn calculate_layout_with_borders(area: Rect, constraints: &[Constraint; 3]) 
     vec![inner1, layout_rect[1], inner3]
 }
 
-pub fn calculate_preview(context: &AppContext, rect: Rect) -> Option<PreviewArea> {
-    let preview_context = context.preview_context_ref();
-    let curr_tab = context.tab_context_ref().curr_tab_ref();
+pub fn calculate_preview(
+    tab_context: &TabContext,
+    preview_context: &PreviewContext,
+    rect: Rect,
+) -> Option<PreviewArea> {
+    let curr_tab = tab_context.curr_tab_ref();
 
     let child_list = curr_tab.child_list_ref();
 

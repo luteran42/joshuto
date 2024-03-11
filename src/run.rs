@@ -1,8 +1,12 @@
 use crate::commands::quit::QuitAction;
 use crate::config::clean::keymap::AppKeyMapping;
+use crate::context::calculate_external_preview;
 use crate::context::AppContext;
 use crate::event::process_event;
 use crate::event::AppEvent;
+use crate::history::generate_entries_to_root;
+use crate::history::DirectoryHistory;
+use crate::history::JoshutoHistory;
 use crate::key_command::{AppExecute, CommandKeybind};
 use crate::preview::preview_default;
 use crate::tab::JoshutoTab;
@@ -32,11 +36,22 @@ pub fn run_loop(
     {
         let id = Uuid::new_v4();
         // Initialize an initial tab
-        let tab = JoshutoTab::new(
-            curr_path,
+        let mut new_tab_history = JoshutoHistory::new();
+        let tab_display_options = context
+            .config_ref()
+            .display_options_ref()
+            .default_tab_display_option
+            .clone();
+        let dirlists = generate_entries_to_root(
+            curr_path.as_path(),
+            &new_tab_history,
             context.ui_context_ref(),
             context.config_ref().display_options_ref(),
+            &tab_display_options,
         )?;
+        new_tab_history.insert_entries(dirlists);
+
+        let tab = JoshutoTab::new(curr_path, new_tab_history, tab_display_options)?;
         context.tab_context_mut().insert_tab(id, tab);
 
         // trigger a preview of child
@@ -53,7 +68,17 @@ pub fn run_loop(
             backend.render(TuiView::new(context));
 
             // invoke preview hooks, if appropriate
-            context.update_external_preview();
+            {
+                let new_preview_area = calculate_external_preview(
+                    context.tab_context_ref(),
+                    context.preview_context_ref(),
+                    context.ui_context_ref(),
+                    context.config_ref().preview_options_ref(),
+                );
+                context
+                    .preview_context_mut()
+                    .update_external_preview(new_preview_area);
+            }
         }
 
         // wait for an event and pop it

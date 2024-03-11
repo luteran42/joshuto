@@ -3,6 +3,7 @@ use lscolors::LsColors;
 use ratatui::style::Style;
 use std::path::Path;
 
+use crate::config::clean::app::AppConfig;
 use crate::fs::{FileType, JoshutoDirEntry, LinkType};
 use crate::util::unix;
 
@@ -25,7 +26,7 @@ impl PathStyleIfSome for Style {
     }
 }
 
-pub fn entry_style(entry: &JoshutoDirEntry) -> Style {
+pub fn entry_style(config: &AppConfig, entry: &JoshutoDirEntry) -> Style {
     let metadata = &entry.metadata;
     let filetype = metadata.file_type();
     let linktype = metadata.link_type();
@@ -50,9 +51,9 @@ pub fn entry_style(entry: &JoshutoDirEntry) -> Style {
         Some(lscolors) => {
             let path = entry.file_path();
             lscolors_style(lscolors, path)
-                .unwrap_or_else(|| default_style(entry, linktype, filetype))
+                .unwrap_or_else(|| default_style(config, entry, linktype, filetype))
         }
-        None => default_style(entry, linktype, filetype),
+        None => default_style(config, entry, linktype, filetype),
     }
 }
 
@@ -72,13 +73,18 @@ pub fn entry_prefix(entry: &JoshutoDirEntry) -> (&str, usize) {
     ("", 0)
 }
 
-fn default_style(entry: &JoshutoDirEntry, linktype: &LinkType, filetype: &FileType) -> Style {
+fn default_style(
+    config: &AppConfig,
+    entry: &JoshutoDirEntry,
+    linktype: &LinkType,
+    filetype: &FileType,
+) -> Style {
     match linktype {
         LinkType::Symlink { valid: true, .. } => symlink_valid_style(),
         LinkType::Symlink { valid: false, .. } => symlink_invalid_style(),
         LinkType::Normal => match filetype {
             FileType::Directory => directory_style(),
-            FileType::File => file_style(entry),
+            FileType::File => file_style(config, entry),
         },
     }
 }
@@ -129,7 +135,7 @@ fn directory_style() -> Style {
         .add_modifier(THEME_T.directory.modifier)
 }
 
-fn file_style(entry: &JoshutoDirEntry) -> Style {
+fn file_style(config: &AppConfig, entry: &JoshutoDirEntry) -> Style {
     let regular_style = Style::default()
         .fg(THEME_T.regular.fg)
         .bg(THEME_T.regular.bg)
@@ -142,10 +148,14 @@ fn file_style(entry: &JoshutoDirEntry) -> Style {
             .add_modifier(THEME_T.executable.modifier)
     } else {
         entry
-            .file_path()
-            .extension()
-            .and_then(|s| s.to_str())
-            .and_then(|s| THEME_T.ext.get(s))
+            .ext()
+            .and_then(|s| {
+                if config.case_insensitive_ext {
+                    THEME_T.ext.get(&s.to_lowercase())
+                } else {
+                    THEME_T.ext.get(s)
+                }
+            })
             .map(|theme| {
                 Style::default()
                     .fg(theme.fg)
