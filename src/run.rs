@@ -96,7 +96,7 @@ pub fn run_loop(
         process_input(context, backend, &keymap_t, event);
 
         if context.quit == QuitAction::Restart {
-            backend.terminal_restore(context.config_ref().mouse_support)?;
+            backend.terminal_restore()?;
             restart()
         }
     } // end of main loop

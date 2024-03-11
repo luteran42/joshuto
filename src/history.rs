@@ -245,7 +245,7 @@ pub fn generate_entries_to_root(
     for curr in path.ancestors() {
         if history.contains_key(curr) {
             let mut new_dirlist =
-                create_dirlist_with_history(history, curr, display_options, tab_options)?;
+                create_dirlist_with_history(history, curr, display_options, tab_options, true)?;
             if let Some(ancestor) = prev.as_ref() {
                 if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
                     new_dirlist.set_index(Some(i), ui_context, display_options);

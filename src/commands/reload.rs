@@ -25,6 +25,7 @@ pub fn soft_reload(context: &mut AppContext, id: &Uuid) -> std::io::Result<()> {
                     curr_list.file_path(),
                     display_options,
                     tab_options,
+                    true,
                 )?;
                 dirlists.push(new_dirlist);
             }
@@ -42,10 +43,14 @@ pub fn soft_reload(context: &mut AppContext, id: &Uuid) -> std::io::Result<()> {
 
 pub fn soft_reload_curr_tab(context: &mut AppContext) -> std::io::Result<()> {
     let curr_tab_id = context.tab_context_ref().curr_tab_id();
-    soft_reload(context, &curr_tab_id, true)
+    soft_reload(context, &curr_tab_id)
 }
 
-pub fn reload(context: &mut AppContext, id: &Uuid) -> std::io::Result<()> {
+pub fn reload(
+    context: &mut AppContext,
+    id: &Uuid,
+    preserve_selection: bool,
+) -> std::io::Result<()> {
     let mut dirlists = Vec::with_capacity(3);
     if let Some(curr_tab) = context.tab_context_ref().tab_ref(id) {
         let display_options = context.config_ref().display_options_ref();
@@ -64,6 +69,7 @@ pub fn reload(context: &mut AppContext, id: &Uuid) -> std::io::Result<()> {
                 curr_list.file_path(),
                 display_options,
                 tab_options,
+                true,
             )?;
             dirlists.push(new_dirlist);
         }

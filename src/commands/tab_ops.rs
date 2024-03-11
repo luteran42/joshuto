@@ -61,6 +61,7 @@ fn _tab_switch(new_index: usize, context: &mut AppContext) -> std::io::Result<()
                         cwd.as_path(),
                         display_options,
                         tab_options,
+                        true,
                     )?;
                     dirlists.push(dirlist);
                 }
@@ -71,6 +72,7 @@ fn _tab_switch(new_index: usize, context: &mut AppContext) -> std::io::Result<()
                     cwd.as_path(),
                     display_options,
                     tab_options,
+                    true,
                 )?;
                 dirlists.push(dirlist);
             }
@@ -214,8 +216,13 @@ pub fn reload_all_tabs(context: &mut AppContext, curr_path: &Path) -> io::Result
         for (id, tab) in context.tab_context_ref().iter() {
             let tab_options = tab.option_ref();
             let history = tab.history_ref();
-            let dirlist =
-                create_dirlist_with_history(history, curr_path, display_options, tab_options)?;
+            let dirlist = create_dirlist_with_history(
+                history,
+                curr_path,
+                display_options,
+                tab_options,
+                false,
+            )?;
             map.insert(*id, dirlist);
         }
     }

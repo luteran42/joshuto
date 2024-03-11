@@ -33,7 +33,6 @@ use config::clean::mimetype::AppProgramRegistry;
 use config::clean::theme::AppTheme;
 use config::{ConfigType, TomlConfigFile};
 use util::cwd;
-use whoami::fallible;
 
 use crate::commands::quit::QuitAction;
 
