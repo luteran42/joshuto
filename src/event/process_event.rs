@@ -97,7 +97,7 @@ pub fn process_finished_worker(context: &mut AppContext, res: AppResult<FileOper
 
     let observer_path = observer.dest_path();
     if observer_path.exists() {
-        let _ = tab_ops::reload_all_tabs(context, observer_path);
+        let _ = tab_ops::reload_all_tabs_no_preserve(context, observer_path);
     } else {
         tab_ops::remove_entry_from_all_tabs(context, observer_path);
     }
