@@ -113,8 +113,11 @@ impl std::str::FromStr for Command {
             Self::CustomSearchInteractive(arg.split(' ').map(|x| x.to_string()).collect())
         );
         simple_command_conversion_case!(command, CMD_SUBDIR_FZF, Self::SubdirFzf);
-        simple_command_conversion_case!(command, CMD_ZOXIDE, Self::Zoxide(arg.to_string()));
-        simple_command_conversion_case!(command, CMD_ZOXIDE_INTERACTIVE, Self::ZoxideInteractive);
+        simple_command_conversion_case!(
+            command,
+            CMD_ZOXIDE_INTERACTIVE,
+            Self::ZoxideInteractive(arg.to_string())
+        );
 
         if command == CMD_QUIT {
             match arg {
@@ -125,8 +128,20 @@ impl std::str::FromStr for Command {
                 _ => Ok(Self::Quit(QuitAction::Noop)),
             }
         } else if command == CMD_NEW_TAB {
+            let mut new_arg = arg.to_string();
+            let mut last = false;
+
+            for arg in arg.split_whitespace() {
+                if arg == "--last" {
+                    new_arg = new_arg.split("--last").collect();
+                    last = true;
+                    break;
+                }
+            }
+
             Ok(Self::NewTab {
-                mode: NewTabMode::from_str(arg),
+                mode: NewTabMode::from_str(&new_arg),
+                last,
             })
         } else if command == CMD_CHANGE_DIRECTORY {
             match arg {
@@ -607,6 +622,28 @@ impl std::str::FromStr for Command {
             Ok(Self::FilterString {
                 pattern: arg.to_string(),
             })
+        } else if command == CMD_ZOXIDE {
+            match arg {
+                "" => match HOME_DIR.as_ref() {
+                    Some(s) => Ok(Self::ChangeDirectory { path: s.clone() }),
+                    None => Err(AppError::new(
+                        AppErrorKind::EnvVarNotPresent,
+                        format!("{}: Cannot find home directory", command),
+                    )),
+                },
+                ".." => Ok(Self::ParentDirectory),
+                "-" => Ok(Self::PreviousDirectory),
+                arg => {
+                    let (head, tail) = match arg.find(' ') {
+                        Some(i) => (&arg[..i], &arg[i..]),
+                        None => (arg, ""),
+                    };
+                    let head = unix::expand_shell_string_cow(head);
+                    let mut args = String::from(head);
+                    args.push_str(tail);
+                    Ok(Self::Zoxide(args))
+                }
+            }
         } else {
             Err(AppError::new(
                 AppErrorKind::UnrecognizedCommand,
