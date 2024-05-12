@@ -3,9 +3,10 @@ use std::error::Error;
 use std::path::{self, PathBuf};
 use std::process::{self, Command, Stdio};
 use std::sync::mpsc::{self, Sender};
-use std::sync::Mutex;
+use std::sync::Arc;
 use std::{io, thread};
 
+use lazy_static::lazy_static;
 use ratatui::layout::Rect;
 use ratatui_image::picker::Picker;
 use ratatui_image::protocol::Protocol;
@@ -14,15 +15,15 @@ use ratatui_image::Resize;
 use crate::config::clean::app::preview::PreviewOption;
 use crate::config::clean::app::AppConfig;
 use crate::event::{AppEvent, PreviewData};
-use crate::lazy_static;
 use crate::preview::preview_file::{FilePreview, PreviewFileState};
 use crate::ui::{views, AppBackend, PreviewArea};
+use crate::util::semaphore::Semaphore;
 use crate::AppContext;
 
 use super::{TabContext, UiContext};
 
 lazy_static! {
-    static ref GUARD: Mutex<()> = Mutex::new(());
+    static ref SEM: Arc<Semaphore> = Arc::new(Semaphore::new(num_cpus::get()));
 }
 
 type FilePreviewMetadata = HashMap<path::PathBuf, PreviewFileState>;
@@ -111,38 +112,42 @@ impl PreviewContext {
         rect: Rect,
         thread_event_ts: Sender<AppEvent>,
     ) {
-        let output = Command::new(script)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .arg("--path")
-            .arg(path.as_path())
-            .arg("--preview-width")
-            .arg(rect.width.to_string())
-            .arg("--preview-height")
-            .arg(rect.height.to_string())
-            .output();
+        let semaphore = Arc::clone(&SEM);
+        thread::spawn(move || {
+            let _guard = semaphore.access();
+            let output = Command::new(script)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .arg("--path")
+                .arg(path.as_path())
+                .arg("--preview-width")
+                .arg(rect.width.to_string())
+                .arg("--preview-height")
+                .arg(rect.height.to_string())
+                .output();
 
-        let res = match output {
-            Ok(output) => {
-                if output.status.success() {
-                    let preview = FilePreview::from(output);
-                    AppEvent::PreviewFile {
-                        path,
-                        res: Ok(PreviewData::Script(Box::new(preview))),
-                    }
-                } else {
-                    AppEvent::PreviewFile {
-                        path,
-                        res: Err(io::Error::new(io::ErrorKind::Other, "nonzero status")),
+            let res = match output {
+                Ok(output) => {
+                    if output.status.success() {
+                        let preview = FilePreview::from(output);
+                        AppEvent::PreviewFile {
+                            path,
+                            res: Ok(PreviewData::Script(Box::new(preview))),
+                        }
+                    } else {
+                        AppEvent::PreviewFile {
+                            path,
+                            res: Err(io::Error::new(io::ErrorKind::Other, "nonzero status")),
+                        }
                     }
                 }
-            }
-            Err(err) => AppEvent::PreviewFile {
-                path,
-                res: Err(io::Error::new(io::ErrorKind::Other, format!("{err}"))),
-            },
-        };
-        let _ = thread_event_ts.send(res);
+                Err(err) => AppEvent::PreviewFile {
+                    path,
+                    res: Err(io::Error::new(io::ErrorKind::Other, format!("{err}"))),
+                },
+            };
+            let _ = thread_event_ts.send(res);
+        });
     }
 
     pub fn previews_ref(&self) -> &FilePreviewMetadata {

@@ -42,7 +42,7 @@ impl TabLabel {
                 full_path_str = full_path_str.replacen(&home_dir_str, "~", 1);
             }
         }
-        // eprintln!("full_path_str: {:?}", full_path_str);
+
         let last = Path::new(&full_path_str)
             .file_name()
             .unwrap_or_default()

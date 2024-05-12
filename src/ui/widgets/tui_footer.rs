@@ -1,12 +1,15 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 
 use crate::config::clean::app::display::tab::TabDisplayOption;
 use crate::fs::{JoshutoDirList, LinkType};
 use crate::util::format;
+use crate::util::style::{
+    mark_selected_style, permanent_selected_style, symlink_invalid_style, symlink_valid_style,
+};
 use crate::util::unix;
 use crate::{THEME_T, TIMEZONE_STR};
 
@@ -31,17 +34,27 @@ impl<'a> Widget for TuiFooter<'a> {
 
         let visual_mode_style = Style::default().fg(Color::Black).bg(Color::LightRed);
         let mode_style = Style::default().fg(Color::Cyan);
+        let file_name_style = Style::default()
+            .fg(Color::Blue)
+            .add_modifier(Modifier::BOLD);
+        let mtime_style = Style::default().add_modifier(Modifier::BOLD);
+        let size_style = Style::default()
+            .fg(Color::LightYellow)
+            .add_modifier(Modifier::BOLD);
 
         // flat and filter commands indicator style
         let indicator_style = Style::default()
             .fg(Color::LightBlue)
             .add_modifier(THEME_T.selection.modifier);
 
-        let selection_style = Style::default()
-            .fg(THEME_T.selection.fg)
-            .bg(THEME_T.selection.bg)
-            .add_modifier(THEME_T.selection.modifier);
+        let selection_style = permanent_selected_style();
+        let mark_cut_style = mark_selected_style("cut");
+        let mark_copy_style = mark_selected_style("copy");
+        let mark_sym_style = mark_selected_style("symlink");
         let selected_count = self.dirlist.selected_count();
+        let marked_cut_count = self.dirlist.marked_cut_count();
+        let marked_copy_count = self.dirlist.marked_copy_count();
+        let marked_sym_count = self.dirlist.marked_sym_count();
 
         match self.dirlist.get_index() {
             Some(i) if i < self.dirlist.len() => {
@@ -54,6 +67,7 @@ impl<'a> Widget for TuiFooter<'a> {
 
                 let mtime_str = format::mtime_to_string(entry.metadata.modified());
                 let size_str = format::file_size_to_string(entry.metadata.len());
+                let path_str = entry.file_name();
 
                 let path = self.dirlist.file_path();
 
@@ -74,14 +88,16 @@ impl<'a> Widget for TuiFooter<'a> {
                     Span::styled(mode_str, mode_style),
                     Span::raw("  "),
                     Span::raw(user_str),
-                    Span::raw(" "),
+                    Span::raw(":"),
                     Span::raw(group_str),
                     Span::raw("  "),
                     Span::raw(format!("{}/{}", i + 1, self.dirlist.len())),
                     Span::raw("  "),
-                    Span::raw(mtime_str),
-                    Span::raw(TIMEZONE_STR.as_str()),
-                    Span::raw(size_str),
+                    Span::styled(mtime_str, mtime_style),
+                    Span::styled(TIMEZONE_STR.as_str(), mtime_style),
+                    Span::styled(size_str, size_style),
+                    Span::raw("  "),
+                    Span::styled(path_str, file_name_style),
                     Span::raw("  "),
                     Span::styled(
                         match self.tab_options.dirlist_options_ref(&path.to_path_buf()) {
@@ -103,23 +119,56 @@ impl<'a> Widget for TuiFooter<'a> {
                         if selected_count > 0 {
                             format!("{} selected", selected_count)
                         } else {
-                            " ".to_string()
+                            "".to_string()
                         },
                         selection_style,
+                    ),
+                    Span::raw(if marked_cut_count > 0 {
+                        " | ".to_string()
+                    } else {
+                        "".to_string()
+                    }),
+                    Span::styled(
+                        if marked_cut_count > 0 {
+                            format!("{} marked -> cut", marked_cut_count)
+                        } else {
+                            "".to_string()
+                        },
+                        mark_cut_style,
+                    ),
+                    Span::raw(if marked_copy_count > 0 {
+                        " | ".to_string()
+                    } else {
+                        "".to_string()
+                    }),
+                    Span::styled(
+                        if marked_copy_count > 0 {
+                            format!("{} marked -> copy", marked_copy_count)
+                        } else {
+                            "".to_string()
+                        },
+                        mark_copy_style,
+                    ),
+                    Span::raw(if marked_sym_count > 0 {
+                        " | ".to_string()
+                    } else {
+                        "".to_string()
+                    }),
+                    Span::styled(
+                        if marked_sym_count > 0 {
+                            format!("{} marked -> symlink", marked_sym_count)
+                        } else {
+                            "".to_string()
+                        },
+                        mark_sym_style,
                     ),
                 ];
 
                 if let LinkType::Symlink { target, valid } = entry.metadata.link_type() {
                     let link_style = if *valid {
-                        Style::default()
-                            .fg(THEME_T.link.fg)
-                            .bg(THEME_T.link.bg)
-                            .add_modifier(THEME_T.link.modifier)
+                        symlink_valid_style()
                     } else {
-                        Style::default()
-                            .fg(THEME_T.link_invalid.fg)
-                            .bg(THEME_T.link_invalid.bg)
-                            .add_modifier(THEME_T.link_invalid.modifier)
+                        symlink_invalid_style()
                     };
                     text.push(Span::styled(" -> ", link_style));
                     text.push(Span::styled(target, link_style));

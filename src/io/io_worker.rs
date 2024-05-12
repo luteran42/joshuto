@@ -223,6 +223,7 @@ pub fn recursive_copy(
     if let Some(s) = src.file_name() {
         dest_buf.push(s);
     }
+
     if !options.overwrite {
         rename_filename_conflict(&mut dest_buf);
     }
@@ -278,9 +279,11 @@ pub fn recursive_cut(
     if let Some(s) = src.file_name() {
         dest_buf.push(s);
     }
+
     if !options.overwrite {
         rename_filename_conflict(&mut dest_buf);
     }
+
     let metadata = fs::symlink_metadata(src)?;
     let file_type = metadata.file_type();
 

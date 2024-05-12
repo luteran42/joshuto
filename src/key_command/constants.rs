@@ -16,6 +16,7 @@ macro_rules! cmd_constants {
 
 cmd_constants![
     (CMD_QUIT, "quit"),
+    (CMD_RESTART, "restart"),
     (CMD_BULK_RENAME, "bulk_rename"),
     (CMD_CHANGE_DIRECTORY, "cd"),
     (CMD_PARENT_DIRECTORY, "cd .."),
@@ -33,6 +34,7 @@ cmd_constants![
     (CMD_COPY_DIRECTORY_PATH, "copy_dirpath"),
     (CMD_SYMLINK_FILES, "symlink_files"),
     (CMD_PASTE_FILES, "paste_files"),
+    (CMD_CANCEL_FILES, "cancel_file_operation"),
     (CMD_DELETE_FILES, "delete_files"),
     (CMD_CURSOR_MOVE_UP, "cursor_move_up"),
     (CMD_CURSOR_MOVE_DOWN, "cursor_move_down"),

@@ -8,6 +8,7 @@ impl AppCommand for Command {
             Self::Help => CMD_HELP,
 
             Self::Quit(_) => CMD_QUIT,
+            Self::Restart(_) => CMD_RESTART,
 
             Self::ToggleVisualMode => CMD_TOGGLE_VISUAL,
             Self::Escape => CMD_ESCAPE,
@@ -30,6 +31,7 @@ impl AppCommand for Command {
             Self::CopyDirPath => CMD_COPY_DIRECTORY_PATH,
             Self::SymlinkFiles { .. } => CMD_SYMLINK_FILES,
             Self::PasteFiles { .. } => CMD_PASTE_FILES,
+            Self::CancelFiles { .. } => CMD_PASTE_FILES,
 
             Self::DeleteFiles { .. } => CMD_DELETE_FILES,
 

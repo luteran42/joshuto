@@ -10,6 +10,7 @@ pub enum QuitAction {
     Force,
     OutputCurrentDirectory,
     OutputSelectedFiles,
+    Restart,
 }
 
 impl QuitAction {
@@ -20,6 +21,7 @@ impl QuitAction {
             Self::Force => 100,
             Self::OutputCurrentDirectory => 101,
             Self::OutputSelectedFiles => 102,
+            Self::Restart => 103,
         }
     }
 }

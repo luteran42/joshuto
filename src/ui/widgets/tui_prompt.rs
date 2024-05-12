@@ -1,5 +1,5 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Clear, Paragraph, Wrap};
 use termion::event::{Event, Key};
@@ -36,7 +36,9 @@ impl<'a> TuiPrompt<'a> {
                     frame.render_widget(view, f_size);
                 }
 
-                let prompt_style = Style::default().fg(Color::LightYellow);
+                let prompt_style = Style::default()
+                    .fg(Color::LightRed)
+                    .add_modifier(Modifier::BOLD);
 
                 let text = Span::styled(self.prompt, prompt_style);
 

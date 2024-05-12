@@ -11,7 +11,12 @@ keywords = ["ratatui", "ranger", "file_manager", "termion"]
 categories = ['command-line-interface', 'command-line-utilities']
 
 [profile.release]
-strip = true
+opt-level = 3     # Optimize for performance
+lto = true        # Enable link-time optimization
+codegen-units = 1 # Reduce number of codegen units to increase optimizations
+panic = 'abort'   # Abort on panic
+debug = 0         # no debug
+strip = true      # Strip symbols from binary
 
 [dependencies]
 alphanumeric-sort = "^1"
@@ -24,16 +29,21 @@ colors-transform = "^0"
 dirs-next = "^2"
 filetime = "^0"
 globset = "^0"
-image = "0.24.5"
+image = "^0"
 lazy_static = "^1"
 libc = "^0"
 lscolors = { version = "0.17.0", features = ["nu-ansi-term"] }
 notify = "^6"
+num_cpus = "^1"
 open = "^5"
 phf = { version = "^0", features = ["macros"], optional = true }
 rand = "^0"
-ratatui-image = { version = "0.8.1", default-features = false, features = ["termion", "rustix", "serde"] }
-regex = "1.9.3"
+ratatui-image = { version = "^0.8", default-features = false, features = [
+    "termion",
+    "rustix",
+    "serde",
+] }
+regex = "^1"
 rustyline = "^12"
 serde = { version = "^1", features = ["derive"] }
 shadow-rs = "^0"
@@ -50,8 +60,8 @@ xdg = "^2"
 
 [dependencies.nix]
 version = "^0"
-default_features = false
-features = ["user"]
+default-features = false
+features = ["user", "process"]
 
 [dependencies.ratatui]
 version = "^0"
@@ -63,7 +73,7 @@ version = "^1"
 features = ["v4", "fast-rng", "macro-diagnostics"]
 
 [build-dependencies]
-shadow-rs = "0.26"
+shadow-rs = "^0"
 
 [features]
 devicons = ["phf"]

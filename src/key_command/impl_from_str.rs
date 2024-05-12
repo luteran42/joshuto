@@ -122,6 +122,7 @@ impl std::str::FromStr for Command {
         if command == CMD_QUIT {
             match arg {
                 "--force" => Ok(Self::Quit(QuitAction::Force)),
+                "--restart" => Ok(Self::Restart(QuitAction::Restart)),
                 "--output-current-directory" => Ok(Self::Quit(QuitAction::OutputCurrentDirectory)),
                 "--output-selected-files" => Ok(Self::Quit(QuitAction::OutputSelectedFiles)),
                 _ => Ok(Self::Quit(QuitAction::Noop)),
@@ -277,6 +278,22 @@ impl std::str::FromStr for Command {
                 }
             }
             Ok(Self::PasteFiles { options })
+        } else if command == CMD_CANCEL_FILES {
+            let default = FileOperationOptions::default();
+            match arg {
+                "" => Ok(Self::CancelFiles {
+                    options: FileOperationOptions {
+                        overwrite: default.overwrite,
+                        skip_exist: default.skip_exist,
+                        cancel: true,
+                        permanently: default.permanently,
+                    },
+                }),
+                _ => Err(AppError::new(
+                    AppErrorKind::UnrecognizedArgument,
+                    format!("{}: unkown option '{}'", command, arg),
+                )),
+            }
         } else if command == CMD_DELETE_FILES {
             let [mut permanently, mut background, mut noconfirm] = [false; 3];
             for arg in arg.split_whitespace() {
