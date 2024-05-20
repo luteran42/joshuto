@@ -51,7 +51,7 @@ shadow-rs = { version = "^0", default_features = false }
 shell-words = "^1"
 shellexpand = { version = "^3", features = ["full"] }
 signal-hook = "^0"
-termion = "^2"
+termion = "^4"
 toml = "^0"
 unicode-segmentation = "^1"
 unicode-width = "^0"
