@@ -90,5 +90,7 @@ pub fn wait_for_enter() -> io::Result<()> {
 
     let mut user_input = String::with_capacity(4);
     std::io::stdin().read_line(&mut user_input)?;
+    println!("{}", termion::clear::All);
+
     Ok(())
 }
