@@ -47,7 +47,7 @@ ratatui-image = { version = "^1", default-features = false, features = [
 regex = "^1"
 rustyline = "^12"
 serde = { version = "^1", features = ["derive"] }
-shadow-rs = "^0"
+shadow-rs = { version = "^0", default_features = false }
 shell-words = "^1"
 shellexpand = { version = "^3", features = ["full"] }
 signal-hook = "^0"
@@ -74,7 +74,7 @@ version = "^1"
 features = ["v4", "fast-rng", "macro-diagnostics"]
 
 [build-dependencies]
-shadow-rs = "^0"
+shadow-rs = { version = "^0", default_features = false, features = [] }
 
 [features]
 devicons = ["phf"]
