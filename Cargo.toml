@@ -39,7 +39,7 @@ num_cpus = "^1"
 open = "^5"
 phf = { version = "^0", features = ["macros"], optional = true }
 rand = "^0"
-ratatui-image = { version = "^0.8", default-features = false, features = [
+ratatui-image = { version = "^1", default-features = false, features = [
     "termion",
     "rustix",
     "serde",
