@@ -219,6 +219,7 @@ fn run_quit(args: &Args, context: &AppContext) -> Result<(), AppError> {
                     eprintln!("{}", file.display());
                 }
             }
+            QuitAction::Restart => restart(),
             _ => {}
         },
     }
@@ -232,6 +233,24 @@ fn print_version() -> Result<i32, AppError> {
         shadow::PKG_VERSION
     )?;
     Ok(0)
+}
+
+fn restart() -> ! {
+    use std::env;
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStringExt;
+
+    // On linux this line should be OK
+    let exe = CString::new(env::current_exe().unwrap().into_os_string().into_vec()).unwrap();
+
+    // Get current arguments
+    let arg: Vec<CString> = env::args_os()
+        .map(|a| CString::new(a.into_vec()).unwrap())
+        .collect();
+
+    // Restart
+    nix::unistd::execvp(&exe, &arg).unwrap();
+    unreachable!();
 }
 
 fn main() {
