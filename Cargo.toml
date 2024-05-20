@@ -19,6 +19,7 @@ debug = 0         # no debug
 strip = true      # Strip symbols from binary
 
 [dependencies]
+allmytoes = "^0.4"
 alphanumeric-sort = "^1"
 ansi-to-tui = { version = "^3.1.0", optional = true }
 bitflags = { version = "^2", features = ["serde"] }
