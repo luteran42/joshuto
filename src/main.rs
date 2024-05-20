@@ -229,7 +229,7 @@ fn print_version() -> Result<i32, AppError> {
     writeln!(
         &mut std::io::stdout(),
         "{PROGRAM_NAME}-{}",
-        shadow::CLAP_LONG_VERSION
+        shadow::PKG_VERSION
     )?;
     Ok(0)
 }
