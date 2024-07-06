@@ -91,7 +91,7 @@ fn unmark_and_cancel_all(context: &mut AppContext) -> AppResult {
     });
 
     Err(AppError::new(
-        AppErrorKind::Io(io::ErrorKind::Interrupted),
+        AppErrorKind::Io,
         "File operation cancelled!".to_string(),
     ))
 }
