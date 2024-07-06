@@ -8,18 +8,37 @@ pub struct LineMode {
 
 impl LineMode {
     pub const fn all() -> Self {
-        Self {
-            mode: [
-                LineModeArgs::Size,
-                LineModeArgs::ModifyTime,
-                LineModeArgs::AccessTime,
-                LineModeArgs::BirthTime,
-                LineModeArgs::User,
-                LineModeArgs::Group,
-                LineModeArgs::Permission,
-                LineModeArgs::Null,
-            ],
-            size: 7,
+        #[cfg(not(target_env = "musl"))]
+        {
+            Self {
+                mode: [
+                    LineModeArgs::Size,
+                    LineModeArgs::ModifyTime,
+                    LineModeArgs::AccessTime,
+                    LineModeArgs::BirthTime,
+                    LineModeArgs::User,
+                    LineModeArgs::Group,
+                    LineModeArgs::Permission,
+                    LineModeArgs::Null,
+                ],
+                size: 7,
+            }
+        }
+        #[cfg(target_env = "musl")]
+        {
+            Self {
+                mode: [
+                    LineModeArgs::Size,
+                    LineModeArgs::ModifyTime,
+                    LineModeArgs::AccessTime,
+                    LineModeArgs::Null,
+                    LineModeArgs::User,
+                    LineModeArgs::Group,
+                    LineModeArgs::Permission,
+                    LineModeArgs::Null,
+                ],
+                size: 6,
+            }
         }
     }
 
@@ -45,6 +64,7 @@ pub enum LineModeArgs {
     Size,
     ModifyTime,
     AccessTime,
+    #[cfg(not(target_env = "musl"))]
     BirthTime,
     User,
     Group,
@@ -59,6 +79,7 @@ impl AsRef<str> for LineModeArgs {
             LineModeArgs::Size => "size",
             LineModeArgs::ModifyTime => "mtime",
             LineModeArgs::AccessTime => "atime",
+            #[cfg(not(target_env = "musl"))]
             LineModeArgs::BirthTime => "ctime",
             LineModeArgs::User => "user",
             LineModeArgs::Group => "group",
@@ -90,6 +111,7 @@ impl LineMode {
                         "size" => line_mode.add_mode(LineModeArgs::Size),
                         "mtime" => line_mode.add_mode(LineModeArgs::ModifyTime),
                         "atime" => line_mode.add_mode(LineModeArgs::AccessTime),
+                        #[cfg(not(target_env = "musl"))]
                         "btime" => line_mode.add_mode(LineModeArgs::BirthTime),
                         "user" => line_mode.add_mode(LineModeArgs::User),
                         "group" => line_mode.add_mode(LineModeArgs::Group),

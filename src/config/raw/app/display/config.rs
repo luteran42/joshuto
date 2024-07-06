@@ -87,6 +87,7 @@ where
             "size" => line_mode.add_mode(LineModeArgs::Size),
             "mtime" => line_mode.add_mode(LineModeArgs::ModifyTime),
             "atime" => line_mode.add_mode(LineModeArgs::AccessTime),
+            #[cfg(not(target_env = "musl"))]
             "btime" => line_mode.add_mode(LineModeArgs::BirthTime),
             "user" => line_mode.add_mode(LineModeArgs::User),
             "group" => line_mode.add_mode(LineModeArgs::Group),

@@ -28,6 +28,7 @@ pub struct JoshutoMetadata {
     directory_size: Option<usize>,
     modified: time::SystemTime,
     accessed: time::SystemTime,
+    #[cfg(not(target_env = "musl"))]
     created: time::SystemTime,
     permissions: fs::Permissions,
     file_type: FileType,
@@ -47,6 +48,8 @@ impl JoshutoMetadata {
 
         let symlink_metadata = fs::symlink_metadata(path)?;
         let metadata = fs::metadata(path);
+
+        #[cfg(not(target_env = "musl"))]
         let (len, modified, accessed, created, permissions) = match metadata.as_ref() {
             Ok(m) => (
                 m.len(),
@@ -60,6 +63,17 @@ impl JoshutoMetadata {
                 symlink_metadata.modified()?,
                 symlink_metadata.accessed()?,
                 symlink_metadata.created()?,
+                symlink_metadata.permissions(),
+            ),
+        };
+
+        #[cfg(target_env = "musl")]
+        let (len, modified, accessed, permissions) = match metadata.as_ref() {
+            Ok(m) => (m.len(), m.modified()?, m.accessed()?, m.permissions()),
+            Err(_) => (
+                symlink_metadata.len(),
+                symlink_metadata.modified()?,
+                symlink_metadata.accessed()?,
                 symlink_metadata.permissions(),
             ),
         };
@@ -99,6 +113,7 @@ impl JoshutoMetadata {
             directory_size,
             modified,
             accessed,
+            #[cfg(not(target_env = "musl"))]
             created,
             permissions,
             file_type,
@@ -132,6 +147,7 @@ impl JoshutoMetadata {
         self.accessed
     }
 
+    #[cfg(not(target_env = "musl"))]
     pub fn created(&self) -> time::SystemTime {
         self.created
     }

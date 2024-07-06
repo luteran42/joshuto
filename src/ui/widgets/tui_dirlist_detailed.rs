@@ -144,6 +144,7 @@ fn display_line_mode(mode: LineMode, entry: &JoshutoDirEntry) -> String {
             LineModeArgs::Size => get_entry_size_string(entry),
             LineModeArgs::ModifyTime => time_to_string(metadata.modified()),
             LineModeArgs::AccessTime => time_to_string(metadata.accessed()),
+            #[cfg(not(target_env = "musl"))]
             LineModeArgs::BirthTime => time_to_string(metadata.created()),
             LineModeArgs::User => unix::uid_to_string(metadata.uid).unwrap_or("unknown".into()),
             LineModeArgs::Group => unix::gid_to_string(metadata.gid).unwrap_or("unknown".into()),
