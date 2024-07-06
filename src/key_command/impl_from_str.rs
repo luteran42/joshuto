@@ -148,7 +148,7 @@ impl std::str::FromStr for Command {
                 "" => match HOME_DIR.as_ref() {
                     Some(s) => Ok(Self::ChangeDirectory { path: s.clone() }),
                     None => Err(AppError::new(
-                        AppErrorKind::EnvVarNotPresent,
+                        AppErrorKind::EnvVar,
                         format!("{}: Cannot find home directory", command),
                     )),
                 },
@@ -164,7 +164,7 @@ impl std::str::FromStr for Command {
                 "" => Ok(Self::CursorMoveDown { offset: 1 }),
                 arg => match arg.trim().parse::<usize>() {
                     Ok(s) => Ok(Self::CursorMoveDown { offset: s }),
-                    Err(e) => Err(AppError::new(AppErrorKind::ParseError, e.to_string())),
+                    Err(e) => Err(AppError::new(AppErrorKind::Parse, e.to_string())),
                 },
             }
         } else if command == CMD_CURSOR_MOVE_PAGEUP {
@@ -178,7 +178,7 @@ impl std::str::FromStr for Command {
                 "" => Ok(Self::CursorMoveUp { offset: 1 }),
                 arg => match arg.trim().parse::<usize>() {
                     Ok(s) => Ok(Self::CursorMoveUp { offset: s }),
-                    Err(e) => Err(AppError::new(AppErrorKind::ParseError, e.to_string())),
+                    Err(e) => Err(AppError::new(AppErrorKind::Parse, e.to_string())),
                 },
             }
         } else if command == CMD_PARENT_CURSOR_MOVE_DOWN {
@@ -186,7 +186,7 @@ impl std::str::FromStr for Command {
                 "" => Ok(Self::ParentCursorMoveDown { offset: 1 }),
                 arg => match arg.trim().parse::<usize>() {
                     Ok(s) => Ok(Self::ParentCursorMoveDown { offset: s }),
-                    Err(e) => Err(AppError::new(AppErrorKind::ParseError, e.to_string())),
+                    Err(e) => Err(AppError::new(AppErrorKind::Parse, e.to_string())),
                 },
             }
         } else if command == CMD_PARENT_CURSOR_MOVE_UP {
@@ -194,7 +194,7 @@ impl std::str::FromStr for Command {
                 "" => Ok(Self::ParentCursorMoveUp { offset: 1 }),
                 arg => match arg.trim().parse::<usize>() {
                     Ok(s) => Ok(Self::ParentCursorMoveUp { offset: s }),
-                    Err(e) => Err(AppError::new(AppErrorKind::ParseError, e.to_string())),
+                    Err(e) => Err(AppError::new(AppErrorKind::Parse, e.to_string())),
                 },
             }
         } else if command == CMD_PREVIEW_CURSOR_MOVE_DOWN {
@@ -202,7 +202,7 @@ impl std::str::FromStr for Command {
                 "" => Ok(Self::PreviewCursorMoveDown { offset: 1 }),
                 arg => match arg.trim().parse::<usize>() {
                     Ok(s) => Ok(Self::PreviewCursorMoveDown { offset: s }),
-                    Err(e) => Err(AppError::new(AppErrorKind::ParseError, e.to_string())),
+                    Err(e) => Err(AppError::new(AppErrorKind::Parse, e.to_string())),
                 },
             }
         } else if command == CMD_PREVIEW_CURSOR_MOVE_UP {
@@ -210,7 +210,7 @@ impl std::str::FromStr for Command {
                 "" => Ok(Self::PreviewCursorMoveUp { offset: 1 }),
                 arg => match arg.trim().parse::<usize>() {
                     Ok(s) => Ok(Self::PreviewCursorMoveUp { offset: s }),
-                    Err(e) => Err(AppError::new(AppErrorKind::ParseError, e.to_string())),
+                    Err(e) => Err(AppError::new(AppErrorKind::Parse, e.to_string())),
                 },
             }
         } else if command == CMD_NEW_DIRECTORY {
@@ -228,7 +228,7 @@ impl std::str::FromStr for Command {
                 "" => Ok(Self::OpenFileWith { index: None }),
                 arg => match arg.trim().parse::<usize>() {
                     Ok(s) => Ok(Self::OpenFileWith { index: Some(s) }),
-                    Err(e) => Err(AppError::new(AppErrorKind::ParseError, e.to_string())),
+                    Err(e) => Err(AppError::new(AppErrorKind::Parse, e.to_string())),
                 },
             }
         } else if command == CMD_SYMLINK_FILES {
@@ -627,7 +627,7 @@ impl std::str::FromStr for Command {
                 "" => match HOME_DIR.as_ref() {
                     Some(s) => Ok(Self::ChangeDirectory { path: s.clone() }),
                     None => Err(AppError::new(
-                        AppErrorKind::EnvVarNotPresent,
+                        AppErrorKind::EnvVar,
                         format!("{}: Cannot find home directory", command),
                     )),
                 },

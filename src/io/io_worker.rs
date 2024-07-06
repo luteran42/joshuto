@@ -369,6 +369,7 @@ where
         ("gio trash", format!("gio trash -- '{}'", file_path_str)),
         ("trash-put", format!("trash-put '{}'", file_path_str)),
         ("trash", format!("trash '{}'", file_path_str)),
+        ("gtrash put", format!("gtrash put -- '{}'", file_path_str)),
     ];
 
     for (_, cmd) in clipboards.iter() {
@@ -384,7 +385,7 @@ where
         }
     }
     Err(AppError::new(
-        AppErrorKind::TrashError,
+        AppErrorKind::Trash,
         "Failed to trash file".to_string(),
     ))
 }
