@@ -24,14 +24,12 @@ pub enum LinkType {
 
 #[derive(Clone, Debug)]
 pub struct JoshutoMetadata {
-    len: u64,
-    directory_size: Option<usize>,
-    modified: time::SystemTime,
-    accessed: time::SystemTime,
-    created: time::SystemTime,
-    permissions: fs::Permissions,
-    file_type: FileType,
-    link_type: LinkType,
+    _len: u64,
+    _directory_size: Option<usize>,
+    _modified: time::SystemTime,
+    _permissions: fs::Permissions,
+    _file_type: FileType,
+    _link_type: LinkType,
     #[cfg(unix)]
     pub uid: u32,
     #[cfg(unix)]
@@ -47,29 +45,21 @@ impl JoshutoMetadata {
 
         let symlink_metadata = fs::symlink_metadata(path)?;
         let metadata = fs::metadata(path);
-        let (len, modified, accessed, created, permissions) = match metadata.as_ref() {
-            Ok(m) => (
-                m.len(),
-                m.modified()?,
-                m.accessed()?,
-                m.created()?,
-                m.permissions(),
-            ),
+        let (_len, _modified, _permissions) = match metadata.as_ref() {
+            Ok(m) => (m.len(), m.modified()?, m.permissions()),
             Err(_) => (
                 symlink_metadata.len(),
                 symlink_metadata.modified()?,
-                symlink_metadata.accessed()?,
-                symlink_metadata.created()?,
                 symlink_metadata.permissions(),
             ),
         };
 
-        let (file_type, directory_size) = match metadata.as_ref() {
+        let (_file_type, _directory_size) = match metadata.as_ref() {
             Ok(m) if m.file_type().is_dir() => (FileType::Directory, None),
             _ => (FileType::File, None),
         };
 
-        let link_type = if symlink_metadata.file_type().is_symlink() {
+        let _link_type = if symlink_metadata.file_type().is_symlink() {
             let mut link = "".to_string();
 
             if let Ok(path) = fs::read_link(path) {
@@ -95,14 +85,12 @@ impl JoshutoMetadata {
         let mode = symlink_metadata.mode();
 
         Ok(Self {
-            len,
-            directory_size,
-            modified,
-            accessed,
-            created,
-            permissions,
-            file_type,
-            link_type,
+            _len,
+            _directory_size,
+            _modified,
+            _permissions,
+            _file_type,
+            _link_type,
             #[cfg(unix)]
             uid,
             #[cfg(unix)]
@@ -113,46 +101,38 @@ impl JoshutoMetadata {
     }
 
     pub fn len(&self) -> u64 {
-        self.len
+        self._len
     }
 
     pub fn directory_size(&self) -> Option<usize> {
-        self.directory_size
+        self._directory_size
     }
 
     pub fn update_directory_size(&mut self, size: usize) {
-        self.directory_size = Some(size);
+        self._directory_size = Some(size);
     }
 
     pub fn modified(&self) -> time::SystemTime {
-        self.modified
-    }
-
-    pub fn accessed(&self) -> time::SystemTime {
-        self.accessed
-    }
-
-    pub fn created(&self) -> time::SystemTime {
-        self.created
+        self._modified
     }
 
     pub fn permissions_ref(&self) -> &fs::Permissions {
-        &self.permissions
+        &self._permissions
     }
 
     pub fn permissions_mut(&mut self) -> &mut fs::Permissions {
-        &mut self.permissions
+        &mut self._permissions
     }
 
     pub fn file_type(&self) -> &FileType {
-        &self.file_type
+        &self._file_type
     }
 
     pub fn link_type(&self) -> &LinkType {
-        &self.link_type
+        &self._link_type
     }
 
     pub fn is_dir(&self) -> bool {
-        self.file_type == FileType::Directory
+        self._file_type == FileType::Directory
     }
 }

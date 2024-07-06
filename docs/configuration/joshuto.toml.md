@@ -81,13 +81,11 @@ line_number_style = "none"
 # Options include
 # - size
 # - mtime
-# - atime
-# - btime
 # - user
 # - group
 # - perm
 # - none (can't be combined with other options)
-# - all (same with none, but if there are not enough space to display the whole string, it will be cut off)
+# - all (can't be combined with other options)
 linemode = "size"
 
 # Configurations related to file sorting

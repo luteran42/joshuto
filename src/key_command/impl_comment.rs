@@ -1,4 +1,7 @@
-use crate::{config::clean::app::display::sort_type::SortType, io::FileOperationOptions};
+use crate::{
+    config::clean::app::display::{line_mode::LineMode, sort_type::SortType},
+    io::FileOperationOptions,
+};
 
 use crate::commands::sub_process::SubprocessCallMode;
 
@@ -8,7 +11,14 @@ impl CommandComment for Command {
     // These comments are displayed at the help page
     fn comment(&self) -> &'static str {
         match self {
-            Self::SetLineMode(_) => "Show File's metadata in line",
+            Self::SetLineMode(linemode) => match *linemode {
+                LineMode::size => "Show files with size",
+                LineMode::mtime => "Show files with modified time",
+                LineMode::user => "Show files with user",
+                LineMode::group => "Show files with group",
+                LineMode::perm => "Show files with permission",
+                _ => "Show files with multi-attribution",
+            },
             Self::Escape => "Escape from visual mode (cancel)",
             Self::BulkRename => "Bulk rename",
 
