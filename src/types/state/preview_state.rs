@@ -172,8 +172,8 @@ impl PreviewState {
                     res: Err(io::Error::new(io::ErrorKind::Other, format!("{err}"))),
                 },
             };
+            let _ = thread_event_tx.send(res);
         });
-        let _ = thread_event_tx.send(res);
     }
 
     pub fn previews_ref(&self) -> &FilePreviewMetadata {
