@@ -43,21 +43,51 @@ impl IoWorkerThread {
 
     pub fn start(&self, tx: mpsc::Sender<IoWorkerProgressMessage>) -> AppResult<()> {
         match self.get_operation_type() {
-            FileOperation::Cut => self.paste_cut(tx),
-            FileOperation::Copy => self.paste_copy(tx),
-            FileOperation::Symlink { relative: false } => self.paste_link_absolute(tx),
-            FileOperation::Symlink { relative: true } => self.paste_link_relative(tx),
+            FileOperation::Cut => {
+                if self.options.cancel {
+                    Err(AppError::new(
+                        AppErrorKind::UnknownError,
+                        "Cut: operation cancelled!".to_string(),
+                    ))
+                } else {
+                    self.paste_cut(tx)
+                }
+            }
+            FileOperation::Copy => {
+                if self.options.cancel {
+                    Err(AppError::new(
+                        AppErrorKind::UnknownError,
+                        "Copy: operation cancelled!".to_string(),
+                    ))
+                } else {
+                    self.paste_copy(tx)
+                }
+            }
+            FileOperation::Symlink { relative: false } => {
+                if self.options.cancel {
+                    Err(AppError::new(
+                        AppErrorKind::UnknownError,
+                        "Link(absolute): operation cancelled!".to_string(),
+                    ))
+                } else {
+                    self.paste_link_absolute(tx)
+                }
+            }
+            FileOperation::Symlink { relative: true } => {
+                if self.options.cancel {
+                    Err(AppError::new(
+                        AppErrorKind::UnknownError,
+                        "Link(relative): operation cancelled!".to_string(),
+                    ))
+                } else {
+                    self.paste_link_relative(tx)
+                }
+            }
             FileOperation::Delete => self.delete(tx),
         }
     }
 
     fn paste_copy(&self, tx: mpsc::Sender<IoWorkerProgressMessage>) -> AppResult<()> {
-        if self.options.cancel {
-            return Err(AppError::new(
-                AppErrorKind::UnknownError,
-                "Copy: operation cancelled!".to_string(),
-            ));
-        }
         for path in self.paths.iter() {
             recursive_copy(&tx, path.as_path(), self.dest.as_path(), self.options)?;
         }
@@ -65,12 +95,6 @@ impl IoWorkerThread {
     }
 
     fn paste_cut(&self, tx: mpsc::Sender<IoWorkerProgressMessage>) -> AppResult<()> {
-        if self.options.cancel {
-            return Err(AppError::new(
-                AppErrorKind::UnknownError,
-                "Cut: operation cancelled!".to_string(),
-            ));
-        }
         for path in self.paths.iter() {
             recursive_cut(&tx, path.as_path(), self.dest.as_path(), self.options)?;
         }
