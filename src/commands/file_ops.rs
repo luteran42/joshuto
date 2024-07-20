@@ -1,6 +1,7 @@
 use std::process::{Command, Stdio};
 
 use crate::error::{AppError, AppErrorKind, AppResult};
+use crate::fs::JoshutoDirList;
 use crate::types::state::{AppState, LocalStateState};
 use crate::workers::io::{FileOperation, FileOperationOptions, IoWorkerThread};
 
@@ -20,29 +21,123 @@ fn new_local_state(app_state: &mut AppState, file_op: FileOperation) -> Option<(
     Some(())
 }
 
+fn mark_entries(app_state: &mut AppState, op: FileOperation) {
+    let tab = app_state.state.tab_state_mut().curr_tab_mut();
+
+    if let Some(curr_list) = tab.curr_list_mut() {
+        curr_list.iter_mut().for_each(|entry| {
+            entry.set_mark_cut_selected(false);
+            entry.set_mark_copy_selected(false);
+            entry.set_mark_sym_selected(false);
+        });
+
+        match curr_list.selected_count() {
+            count if count != 0 => {
+                curr_list.iter_mut().for_each(|entry| match op {
+                    FileOperation::Cut if entry.is_permanent_selected() => {
+                        entry.set_mark_cut_selected(true)
+                    }
+                    FileOperation::Copy if entry.is_permanent_selected() => {
+                        entry.set_mark_copy_selected(true)
+                    }
+                    FileOperation::Symlink { .. } if entry.is_permanent_selected() => {
+                        entry.set_mark_sym_selected(true)
+                    }
+                    _ => {}
+                });
+            }
+            _ => {
+                if let Some(entry) = curr_list.curr_entry_mut() {
+                    match op {
+                        FileOperation::Cut => entry.set_mark_cut_selected(true),
+                        FileOperation::Copy => entry.set_mark_copy_selected(true),
+                        FileOperation::Symlink { .. } => entry.set_mark_sym_selected(true),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn unmark_entries(curr_tab: &mut JoshutoDirList) {
+    if curr_tab.selected_count() != 0 {
+        curr_tab.iter_mut().for_each(|entry| {
+            if entry.is_marked_cut() {
+                entry.set_mark_cut_selected(false)
+            } else if entry.is_marked_copy() {
+                entry.set_mark_copy_selected(false)
+            } else if entry.is_marked_sym() {
+                entry.set_mark_sym_selected(false)
+            }
+        })
+    } else if let Some(entry) = curr_tab.curr_entry_mut() {
+        if entry.is_marked_cut() {
+            entry.set_mark_cut_selected(false)
+        } else if entry.is_marked_copy() {
+            entry.set_mark_copy_selected(false)
+        } else if entry.is_marked_sym() {
+            entry.set_mark_sym_selected(false)
+        }
+    }
+}
+
+fn unmark_and_cancel_all(app_state: &mut AppState) -> AppResult {
+    app_state
+        .state
+        .tab_state_mut()
+        .iter_mut()
+        .for_each(|entry| {
+            if let Some(curr_list) = entry.1.curr_list_mut() {
+                unmark_entries(curr_list);
+            }
+            if let Some(par_list) = entry.1.parent_list_mut() {
+                unmark_entries(par_list);
+            }
+            if let Some(child_list) = entry.1.child_list_mut() {
+                unmark_entries(child_list);
+            }
+        });
+
+    Err(AppError::new(
+        AppErrorKind::Io,
+        "File operation cancelled!".to_string(),
+    ))
+}
+
+fn perform_file_operation(app_state: &mut AppState, op: FileOperation) -> AppResult {
+    mark_entries(app_state, op);
+    new_local_state(app_state, op);
+    Ok(())
+}
+
 pub fn cut(app_state: &mut AppState) -> AppResult {
-    new_local_state(app_state, FileOperation::Cut);
+    perform_file_operation(app_state, FileOperation::Cut)?;
     Ok(())
 }
 
 pub fn copy(app_state: &mut AppState) -> AppResult {
-    new_local_state(app_state, FileOperation::Copy);
+    perform_file_operation(app_state, FileOperation::Copy)?;
     Ok(())
 }
 
 pub fn symlink_absolute(app_state: &mut AppState) -> AppResult {
-    new_local_state(app_state, FileOperation::Symlink { relative: false });
+    perform_file_operation(app_state, FileOperation::Symlink { relative: false })?;
     Ok(())
 }
 
 pub fn symlink_relative(app_state: &mut AppState) -> AppResult {
-    new_local_state(app_state, FileOperation::Symlink { relative: true });
+    perform_file_operation(app_state, FileOperation::Symlink { relative: true })?;
     Ok(())
 }
 
 pub fn paste(app_state: &mut AppState, options: FileOperationOptions) -> AppResult {
     match app_state.state.take_local_state() {
         Some(state) if !state.paths.is_empty() => {
+            if options.cancel {
+                unmark_and_cancel_all(app_state)?;
+            }
+
             let dest = app_state
                 .state
                 .tab_state_ref()
