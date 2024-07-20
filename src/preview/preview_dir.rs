@@ -1,9 +1,9 @@
 use std::path;
 use std::thread;
 
-use crate::context::AppContext;
-use crate::event::AppEvent;
 use crate::fs::JoshutoDirList;
+use crate::types::event::AppEvent;
+use crate::types::state::AppState;
 
 #[derive(Debug, Clone)]
 pub enum PreviewDirState {
@@ -20,26 +20,31 @@ impl PreviewDirState {
 pub struct Background {}
 
 impl Background {
-    pub fn load_preview(context: &mut AppContext, p: path::PathBuf) -> thread::JoinHandle<()> {
-        let event_tx = context.events.event_tx.clone();
-        let options = context.config_ref().display_options_ref().clone();
-        let tab_options = context
-            .tab_context_ref()
+    pub fn load_preview(
+        app_state: &mut AppState,
+        dir_path: path::PathBuf,
+    ) -> thread::JoinHandle<()> {
+        let event_tx = app_state.events.event_tx.clone();
+        let options = app_state.config.display_options.clone();
+        let tab_options = app_state
+            .state
+            .tab_state_ref()
             .curr_tab_ref()
             .option_ref()
             .clone();
-        let tab_id = context.tab_context_ref().curr_tab_id();
+        let tab_id = app_state.state.tab_state_ref().curr_tab_id();
 
         // add to loading state
-        context
-            .tab_context_mut()
+        app_state
+            .state
+            .tab_state_mut()
             .curr_tab_mut()
             .history_metadata_mut()
-            .insert(p.clone(), PreviewDirState::Loading);
+            .insert(dir_path.clone(), PreviewDirState::Loading);
 
         thread::spawn(move || {
-            let path_clone = p.clone();
-            let dir_res = JoshutoDirList::from_path(p, &options, &tab_options);
+            let path_clone = dir_path.clone();
+            let dir_res = JoshutoDirList::from_path(dir_path, &options, &tab_options);
             let res = AppEvent::PreviewDir {
                 id: tab_id,
                 path: path_clone,

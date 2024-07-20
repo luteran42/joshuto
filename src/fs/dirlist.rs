@@ -1,24 +1,24 @@
 use std::slice::{Iter, IterMut};
 use std::{io, path};
 
-use crate::config::clean::app::display::tab::TabDisplayOption;
-use crate::config::clean::app::display::DisplayOption;
-use crate::context::UiContext;
-use crate::fs::{JoshutoDirEntry, JoshutoMetadata};
+use crate::fs::{entry::JoshutoDirEntry, metadata::JoshutoMetadata};
 use crate::history::read_directory;
+use crate::tab::TabDisplayOption;
+use crate::types::option::display::DisplayOption;
+use crate::types::state::UiState;
 
 #[derive(Clone, Debug)]
 pub struct JoshutoDirList {
-    path: path::PathBuf,
+    pub path: path::PathBuf,
     pub contents: Vec<JoshutoDirEntry>,
     pub metadata: JoshutoMetadata,
     /// The cursor position in this dir list
-    index: Option<usize>,
+    pub index: Option<usize>,
     /// The index in this dir list to start with when rendering the list
-    viewport_index: usize,
+    pub viewport_index: usize,
     /// The index in this dir list where visual mode has started or None if not in visual mode
-    visual_mode_anchor_index: Option<usize>,
-    _need_update: bool,
+    pub visual_mode_anchor_index: Option<usize>,
+    pub need_update: bool,
 }
 
 impl JoshutoDirList {
@@ -37,19 +37,20 @@ impl JoshutoDirList {
             index,
             viewport_index,
             visual_mode_anchor_index,
-            _need_update: false,
+            need_update: false,
         }
     }
 
     pub fn from_path(
         path: path::PathBuf,
-        options: &DisplayOption,
+        display_options: &DisplayOption,
         tab_options: &TabDisplayOption,
     ) -> io::Result<Self> {
-        let filter_func = options.filter_func();
-        let mut contents = read_directory(path.as_path(), filter_func, options, tab_options)?;
+        let filter_func = display_options.filter_func();
+        let mut contents =
+            read_directory(path.as_path(), filter_func, display_options, tab_options)?;
 
-        contents.sort_by(|f1, f2| tab_options.sort_options_ref().compare(f1, f2));
+        contents.sort_by(|f1, f2| tab_options.sort_options.compare(f1, f2));
 
         let index = if contents.is_empty() { None } else { Some(0) };
         let metadata = JoshutoMetadata::from(&path)?;
@@ -58,7 +59,7 @@ impl JoshutoDirList {
             path,
             contents,
             metadata,
-            _need_update: false,
+            need_update: false,
             index,
             viewport_index: index.unwrap_or_default(),
             visual_mode_anchor_index: None,
@@ -75,7 +76,6 @@ impl JoshutoDirList {
                 return Some(index);
             }
         }
-
         None
     }
 
@@ -135,17 +135,17 @@ impl JoshutoDirList {
         }
     }
 
-    pub fn update_viewport(&mut self, ui_context: &UiContext, options: &DisplayOption) {
+    pub fn update_viewport(&mut self, ui_state: &UiState, options: &DisplayOption) {
         if let Some(ix) = self.index {
-            let height = ui_context.layout[0].height as usize;
+            let height = ui_state.layout[0].height as usize;
 
             // get scroll buffer size, corrected in case of too small terminal
             let scroll_offset = if height < 4 {
                 0
-            } else if options.scroll_offset() * 2 > height - 1 {
+            } else if options.scroll_offset * 2 > height - 1 {
                 height / 2 - 1
             } else {
-                options.scroll_offset()
+                options.scroll_offset
             };
 
             // calculate viewport
@@ -166,18 +166,13 @@ impl JoshutoDirList {
         }
     }
 
-    pub fn set_index(
-        &mut self,
-        index: Option<usize>,
-        ui_context: &UiContext,
-        options: &DisplayOption,
-    ) {
+    pub fn set_index(&mut self, index: Option<usize>, ui_state: &UiState, options: &DisplayOption) {
         if index == self.index {
             return;
         }
         self.index = index;
-        if !ui_context.layout.is_empty() {
-            self.update_viewport(ui_context, options);
+        if !ui_state.layout.is_empty() {
+            self.update_viewport(ui_state, options);
         }
         self.update_visual_mode_selection();
     }
@@ -207,11 +202,11 @@ impl JoshutoDirList {
     }
 
     pub fn depreciate(&mut self) {
-        self._need_update = true;
+        self.need_update = true;
     }
 
     pub fn need_update(&self) -> bool {
-        self._need_update || self.modified()
+        self.need_update || self.modified()
     }
 
     pub fn file_path(&self) -> &path::Path {

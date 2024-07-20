@@ -1,6 +1,6 @@
 use std::{fs, io, path};
 
-use crate::{config::clean::app::display::DisplayOption, fs::JoshutoMetadata};
+use crate::{fs::metadata::JoshutoMetadata, types::option::display::DisplayOption};
 
 #[derive(Clone, Debug)]
 pub struct JoshutoDirEntry {
@@ -41,7 +41,7 @@ impl JoshutoDirEntry {
 
         let mut metadata = JoshutoMetadata::from(&path)?;
 
-        if options.automatically_count_files() && metadata.file_type().is_dir() {
+        if options.automatically_count_files && metadata.file_type().is_dir() {
             if let Ok(size) = get_directory_size(path.as_path()) {
                 metadata.update_directory_size(size);
             }

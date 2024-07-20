@@ -4,11 +4,10 @@ use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
-use crate::config::clean::app::display::dirlist::DirListDisplayOptions;
-use crate::config::clean::app::display::tab::TabDisplayOption;
-use crate::config::clean::app::display::DisplayOption;
-use crate::context::UiContext;
-use crate::fs::{JoshutoDirEntry, JoshutoDirList, JoshutoMetadata};
+use crate::fs::{DirListDisplayOptions, JoshutoDirEntry, JoshutoDirList, JoshutoMetadata};
+use crate::tab::TabDisplayOption;
+use crate::types::option::display::DisplayOption;
+use crate::types::state::UiState;
 
 pub trait DirectoryHistory {
     fn insert_entries(&mut self, entries: Vec<JoshutoDirList>);
@@ -64,7 +63,7 @@ pub fn create_dirlist_with_history(
         );
         for entry in contents.iter_mut() {
             if let Some(former_entry) = former_entries_by_file_name.get(entry.file_name()) {
-                if options._preserve_selection {
+                if options.preserve_selection {
                     entry.set_mark_cut_selected(former_entry.is_marked_cut());
                     entry.set_mark_copy_selected(former_entry.is_marked_copy());
                     entry.set_mark_sym_selected(former_entry.is_marked_sym());
@@ -177,7 +176,7 @@ where
 pub fn generate_entries_to_root(
     path: &Path,
     history: &JoshutoHistory,
-    ui_context: &UiContext,
+    ui_state: &UiState,
     display_options: &DisplayOption,
     tab_options: &TabDisplayOption,
 ) -> io::Result<Vec<JoshutoDirList>> {
@@ -190,7 +189,7 @@ pub fn generate_entries_to_root(
                 create_dirlist_with_history(history, curr, display_options, tab_options)?;
             if let Some(ancestor) = prev.as_ref() {
                 if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
-                    new_dirlist.set_index(Some(i), ui_context, display_options);
+                    new_dirlist.set_index(Some(i), ui_state, display_options);
                 }
             }
             dirlists.push(new_dirlist);
@@ -202,7 +201,7 @@ pub fn generate_entries_to_root(
             )?;
             if let Some(ancestor) = prev.as_ref() {
                 if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
-                    new_dirlist.set_index(Some(i), ui_context, display_options);
+                    new_dirlist.set_index(Some(i), ui_state, display_options);
                 }
             }
             dirlists.push(new_dirlist);
