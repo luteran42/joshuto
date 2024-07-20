@@ -52,6 +52,12 @@ impl IoWorkerThread {
     }
 
     fn paste_copy(&self, tx: mpsc::Sender<IoWorkerProgressMessage>) -> AppResult<()> {
+        if self.options.cancel {
+            return Err(AppError::new(
+                AppErrorKind::UnknownError,
+                "Copy: operation cancelled!".to_string(),
+            ));
+        }
         for path in self.paths.iter() {
             recursive_copy(&tx, path.as_path(), self.dest.as_path(), self.options)?;
         }
@@ -59,6 +65,12 @@ impl IoWorkerThread {
     }
 
     fn paste_cut(&self, tx: mpsc::Sender<IoWorkerProgressMessage>) -> AppResult<()> {
+        if self.options.cancel {
+            return Err(AppError::new(
+                AppErrorKind::UnknownError,
+                "Cut: operation cancelled!".to_string(),
+            ));
+        }
         for path in self.paths.iter() {
             recursive_cut(&tx, path.as_path(), self.dest.as_path(), self.options)?;
         }
