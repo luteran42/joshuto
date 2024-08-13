@@ -1,6 +1,7 @@
 use std::path;
 
 use crate::error::{AppError, AppErrorKind, AppResult};
+use crate::fs::FileType;
 use crate::types::state::AppState;
 use crate::ui::AppBackend;
 
@@ -19,7 +20,7 @@ pub fn lazy_load_directory_size(app_state: &mut AppState) {
                     Some(len) if size != len => Some(len),
                     _ => None,
                 }
-            } else if !curr_entry.metadata.file_type().is_dir() {
+            } else if curr_entry.metadata.file_type() != FileType::Directory {
                 None
             } else {
                 let history = app_state.state.tab_state_ref().curr_tab_ref().history_ref();

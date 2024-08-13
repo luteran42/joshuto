@@ -2,6 +2,7 @@ use std::io;
 use std::path;
 
 use notify;
+use ratatui::layout::Rect;
 use ratatui::layout::{Constraint, Direction, Layout};
 use signal_hook::consts::signal;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
@@ -17,6 +18,8 @@ use crate::traits::app_execute::AppExecute;
 use crate::types::command::Command;
 use crate::types::event::AppEvent;
 use crate::types::event::PreviewData;
+use crate::types::io::IoTaskProgressMessage;
+use crate::types::io::IoTaskStat;
 use crate::types::keybind::CommandKeybind;
 use crate::types::keybind::KeyMapping;
 use crate::types::keymap::AppKeyMapping;
@@ -24,7 +27,6 @@ use crate::types::state::AppState;
 use crate::ui;
 use crate::ui::views::TuiCommandMenu;
 use crate::utils::format;
-use crate::workers::io::IoWorkerProgressMessage;
 
 pub fn poll_event_until_simple_keybind<'a>(
     app_state: &mut AppState,
@@ -63,9 +65,10 @@ pub fn poll_event_until_simple_keybind<'a>(
 
 pub fn process_noninteractive(event: AppEvent, app_state: &mut AppState) {
     match event {
-        AppEvent::IoWorkerCreate => process_new_worker(app_state),
-        AppEvent::FileOperationProgress(res) => process_worker_progress(app_state, res),
-        AppEvent::IoWorkerResult(res) => process_finished_worker(app_state, res),
+        AppEvent::NewIoTask => process_new_io_task(app_state),
+        AppEvent::IoTaskStart(stats) => process_io_task_start(app_state, stats),
+        AppEvent::IoTaskProgress(res) => process_io_task_progress(app_state, res),
+        AppEvent::IoTaskResult(res) => process_finished_io_task(app_state, res),
         AppEvent::PreviewDir { id, path, res } => process_dir_preview(app_state, id, path, *res),
         AppEvent::PreviewFile { path, res } => process_file_preview(app_state, path, res),
         AppEvent::Signal(signal::SIGWINCH) => {}
@@ -81,23 +84,29 @@ fn process_filesystem_event(_event: notify::Event, app_state: &mut AppState) {
     let _ = reload::soft_reload_curr_tab(app_state);
 }
 
-pub fn process_new_worker(app_state: &mut AppState) {
-    if !app_state.state.worker_state_ref().is_busy()
-        && !app_state.state.worker_state_ref().is_empty()
-    {
-        let _ = app_state.state.worker_state_mut().start_next_job();
+pub fn process_new_io_task(app_state: &mut AppState) {
+    if app_state.state.worker_state_ref().is_busy() {
+        return;
     }
+    if app_state.state.worker_state_ref().is_empty() {
+        return;
+    }
+    let _ = app_state.state.worker_state_mut().start_next_job();
 }
 
-pub fn process_worker_progress(app_state: &mut AppState, res: IoWorkerProgressMessage) {
+pub fn process_io_task_start(app_state: &mut AppState, stats: IoTaskStat) {
+    app_state.state.worker_state.progress = Some(stats);
+}
+
+pub fn process_io_task_progress(app_state: &mut AppState, res: IoTaskProgressMessage) {
     let worker_state = app_state.state.worker_state_mut();
-    if let Some(observer) = worker_state.observer.as_mut() {
+    if let Some(observer) = worker_state.progress.as_mut() {
         observer.process_msg(res);
         observer.update_msg();
     }
 }
 
-pub fn process_finished_worker(app_state: &mut AppState, res: AppResult) {
+pub fn process_finished_io_task(app_state: &mut AppState, res: AppResult) {
     let worker_state = app_state.state.worker_state_mut();
     let observer = worker_state.remove_worker().unwrap();
 
@@ -116,8 +125,6 @@ pub fn process_finished_worker(app_state: &mut AppState, res: AppResult) {
     }
 
     let progress = observer.progress.clone();
-    observer.join();
-
     match res {
         Ok(_) => {
             let op = progress.kind.actioned_str();
@@ -129,17 +136,13 @@ pub fn process_finished_worker(app_state: &mut AppState, res: AppResult) {
             );
             app_state.state.message_queue_mut().push_success(msg);
         }
-        Err(e) => {
-            let msg = format!("{}", e);
+        Err(err) => {
+            let msg = format!("{err}");
             app_state.state.message_queue_mut().push_error(msg);
         }
     }
-
-    if !app_state.state.worker_state_ref().is_busy()
-        && !app_state.state.worker_state_ref().is_empty()
-    {
-        let _ = app_state.state.worker_state_mut().start_next_job();
-    }
+    app_state.state.worker_state_mut().progress = None;
+    process_new_io_task(app_state);
 }
 
 pub fn process_dir_preview(
@@ -265,6 +268,13 @@ pub fn process_mouse(
 ) {
     let f_size = backend.terminal.as_ref().unwrap().size().unwrap();
 
+    let rect = Rect {
+        x: 0,
+        y: 0,
+        width: f_size.width,
+        height: f_size.height,
+    };
+
     let constraints: &[Constraint; 3] = &app_state.config.display_options.default_layout;
     let vertical_margin = if app_state.config.display_options.show_borders {
         2
@@ -276,7 +286,7 @@ pub fn process_mouse(
         .direction(Direction::Horizontal)
         .vertical_margin(vertical_margin)
         .constraints(constraints.as_ref())
-        .split(f_size);
+        .split(rect);
 
     match event {
         MouseEvent::Press(MouseButton::WheelUp, x, _) => {
