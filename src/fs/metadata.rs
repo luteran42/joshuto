@@ -92,6 +92,17 @@ impl JoshutoMetadata {
             ),
         };
 
+        #[cfg(target_env = "musl")]
+        let (len, modified, accessed, permissions) = match metadata.as_ref() {
+            Ok(m) => (m.len(), m.modified()?, m.accessed()?, m.permissions()),
+            Err(_) => (
+                symlink_metadata.len(),
+                symlink_metadata.modified()?,
+                symlink_metadata.accessed()?,
+                symlink_metadata.permissions(),
+            ),
+        };
+
         let directory_size = None;
         let file_type = match metadata.as_ref() {
             Ok(metadata) => FileType::from_mode(metadata.mode()),
