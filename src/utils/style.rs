@@ -89,19 +89,10 @@ fn default_style(
     filetype: FileType,
 ) -> Style {
     match linktype {
-        LinkType::Symlink { valid: true, .. } => Style::default()
-            .fg(THEME_T.link.fg)
-            .bg(THEME_T.link.bg)
-            .add_modifier(THEME_T.link.modifier),
-        LinkType::Symlink { valid: false, .. } => Style::default()
-            .fg(THEME_T.link_invalid.fg)
-            .bg(THEME_T.link_invalid.bg)
-            .add_modifier(THEME_T.link_invalid.modifier),
+        LinkType::Symlink { valid: true, .. } => symlink_valid_style(),
+        LinkType::Symlink { valid: false, .. } => symlink_invalid_style(),
         LinkType::Normal => match filetype {
-            FileType::Directory => Style::default()
-                .fg(THEME_T.directory.fg)
-                .bg(THEME_T.directory.bg)
-                .add_modifier(THEME_T.directory.modifier),
+            FileType::Directory => directory_style(),
             FileType::File => file_style(config, entry),
             FileType::Link => Style::default()
                 .fg(THEME_T.link.fg)
