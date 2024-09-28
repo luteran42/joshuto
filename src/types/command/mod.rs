@@ -155,6 +155,8 @@ pub enum Command {
     },
     ShowTasks,
 
+    SignalSuspend,
+
     ToggleHiddenFiles,
     SwitchLineNums(LineNumberStyle),
 
