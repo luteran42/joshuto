@@ -3,8 +3,6 @@ pub enum LineModeArgs {
     Size,
     ModifyTime,
     AccessTime,
-    #[cfg(not(target_env = "musl"))]
-    BirthTime,
     User,
     Group,
     Permission,
@@ -18,8 +16,6 @@ impl AsRef<str> for LineModeArgs {
             LineModeArgs::Size => "size",
             LineModeArgs::ModifyTime => "mtime",
             LineModeArgs::AccessTime => "atime",
-            #[cfg(not(target_env = "musl"))]
-            LineModeArgs::BirthTime => "ctime",
             LineModeArgs::User => "user",
             LineModeArgs::Group => "group",
             LineModeArgs::Permission => "perm",
