@@ -64,16 +64,7 @@ impl JoshutoMetadata {
         use std::os::unix::fs::MetadataExt;
 
         let symlink_metadata = fs::symlink_metadata(path)?;
-        let (len, modified, accessed) = match metadata.as_ref() {
-            Ok(m) => (m.len(), m.modified()?, m.accessed()?),
-            Err(_) => (
-                symlink_metadata.len(),
-                symlink_metadata.modified()?,
-                symlink_metadata.accessed()?,
-            ),
-        };
-
-        #[cfg(target_env = "musl")]
+        let metadata = fs::metadata(path);
         let (len, modified, accessed) = match metadata.as_ref() {
             Ok(m) => (m.len(), m.modified()?, m.accessed()?),
             Err(_) => (
