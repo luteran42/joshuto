@@ -281,16 +281,12 @@ impl std::str::FromStr for Command {
             }
             Ok(Self::PasteFiles { options })
         } else if command == CMD_CANCEL_FILES {
-            let default = FileOperationOptions::default();
+            let mut options = FileOperationOptions::default();
             match arg {
-                "" => Ok(Self::CancelFiles {
-                    options: FileOperationOptions {
-                        overwrite: default.overwrite,
-                        skip_exist: default.skip_exist,
-                        cancel: true,
-                        permanently: default.permanently,
-                    },
-                }),
+                "" => {
+                    options.cancel = true;
+                    Ok(Self::CancelFiles { options })
+                }
                 _ => Err(AppError::new(
                     AppErrorKind::UnrecognizedArgument,
                     format!("{}: unkown option '{}'", command, arg),

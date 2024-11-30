@@ -40,7 +40,7 @@ fn mark_entries(app_state: &mut AppState, op: FileOperation) {
                     FileOperation::Copy if entry.is_permanent_selected() => {
                         entry.set_mark_copy_selected(true)
                     }
-                    FileOperation::Symlink { .. } if entry.is_permanent_selected() => {
+                    FileOperation::Symlink if entry.is_permanent_selected() => {
                         entry.set_mark_sym_selected(true)
                     }
                     _ => {}
@@ -51,7 +51,7 @@ fn mark_entries(app_state: &mut AppState, op: FileOperation) {
                     match op {
                         FileOperation::Cut => entry.set_mark_cut_selected(true),
                         FileOperation::Copy => entry.set_mark_copy_selected(true),
-                        FileOperation::Symlink { .. } => entry.set_mark_sym_selected(true),
+                        FileOperation::Symlink => entry.set_mark_sym_selected(true),
                         _ => {}
                     }
                 }
@@ -82,7 +82,7 @@ fn unmark_entries(curr_tab: &mut JoshutoDirList) {
     }
 }
 
-fn unmark_and_cancel_all(app_state: &mut AppState) -> AppResult {
+fn unmark_and_cancel_all(app_state: &mut AppState) {
     app_state
         .state
         .tab_state_mut()
@@ -98,14 +98,9 @@ fn unmark_and_cancel_all(app_state: &mut AppState) -> AppResult {
                 unmark_entries(child_list);
             }
         });
-
-    Err(AppError::new(
-        AppErrorKind::Io,
-        "File operation cancelled!".to_string(),
-    ))
 }
 
-fn perform_file_operation(app_state: &mut AppState, op: FileOperation) -> AppResult {
+pub fn perform_file_operation(app_state: &mut AppState, op: FileOperation) -> AppResult {
     mark_entries(app_state, op);
     new_local_state(app_state, op);
     Ok(())
@@ -121,38 +116,61 @@ pub fn copy(app_state: &mut AppState) -> AppResult {
     Ok(())
 }
 
-pub fn symlink_absolute(app_state: &mut AppState) -> AppResult {
-    perform_file_operation(app_state, FileOperation::Symlink { relative: false })?;
-    Ok(())
-}
+pub fn create_io_task(
+    app_state: &mut AppState,
+    operation: FileOperation,
+    options: FileOperationOptions,
+) -> AppResult {
+    let local_state = app_state.state.take_local_state().ok_or_else(|| {
+        let err_msg = "No files selected1";
+        AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string())
+    })?;
 
-pub fn symlink_relative(app_state: &mut AppState) -> AppResult {
-    perform_file_operation(app_state, FileOperation::Symlink { relative: true })?;
-    Ok(())
-}
-
-pub fn paste(app_state: &mut AppState, options: FileOperationOptions) -> AppResult {
-    match app_state.state.take_local_state() {
-        Some(state) if !state.paths.is_empty() => {
-            if options.cancel {
-                unmark_and_cancel_all(app_state)?;
-            }
-
-            let dest = app_state
-                .state
-                .tab_state_ref()
-                .curr_tab_ref()
-                .get_cwd()
-                .to_path_buf();
-            let worker_thread = IoTask::new(state.file_op, state.paths, dest, options);
-            app_state.state.worker_state_mut().push_task(worker_thread);
-            Ok(())
-        }
-        _ => Err(AppError::new(
-            AppErrorKind::Io,
-            "no files selected".to_string(),
-        )),
+    if local_state.paths.is_empty() {
+        let err_msg = "No files selected2";
+        let err = AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string());
+        return Err(err);
     }
+
+    let dest = app_state
+        .state
+        .tab_state_ref()
+        .curr_tab_ref()
+        .get_cwd()
+        .to_path_buf();
+    let worker_thread = IoTask::new(operation, local_state.paths, dest, options);
+    app_state.state.worker_state_mut().push_task(worker_thread);
+
+    Ok(())
+}
+
+pub fn create_io_paste_task(app_state: &mut AppState, options: FileOperationOptions) -> AppResult {
+    let local_state = app_state.state.take_local_state().ok_or_else(|| {
+        let err_msg = "No files selected";
+        AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string())
+    })?;
+
+    if local_state.paths.is_empty() {
+        let err_msg = "No files selected";
+        let err = AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string());
+        return Err(err);
+    } else if !local_state.paths.is_empty() && options.cancel {
+        let err_msg = "File operation cancelled!";
+        let err = AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string());
+        unmark_and_cancel_all(app_state);
+        return Err(err);
+    }
+
+    let dest = app_state
+        .state
+        .tab_state_ref()
+        .curr_tab_ref()
+        .get_cwd()
+        .to_path_buf();
+    let worker_thread = IoTask::new(local_state.file_op, local_state.paths, dest, options);
+    app_state.state.worker_state_mut().push_task(worker_thread);
+
+    Ok(())
 }
 
 pub fn copy_filename(app_state: &mut AppState) -> AppResult {
