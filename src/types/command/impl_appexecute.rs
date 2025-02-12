@@ -52,7 +52,7 @@ impl AppExecute for Command {
             Self::CopyDirPath => file_ops::copy_dirpath(app_state),
             Self::SymlinkFiles { relative } => {
                 let options = FileOperationOptions {
-                    symlink: true,
+                    _symlink: true,
                     symlink_relative: *relative,
                     ..Default::default()
                 };
