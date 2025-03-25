@@ -37,7 +37,7 @@ notify = "^6"
 num_cpus = "^1"
 open = "^5"
 phf = { version = "^0", features = ["macros"], optional = true }
-rand = "^0"
+rand = "^0.9"
 ratatui-image = { version = "1.0.5", default-features = false, features = [
     "termion",
     "rustix",
