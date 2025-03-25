@@ -38,12 +38,8 @@ num_cpus = "^1"
 open = "^5"
 phf = { version = "^0", features = ["macros"], optional = true }
 rand = "^0.9"
-ratatui-image = { version = "1.0.5", default-features = false, features = [
-    "termion",
-    "rustix",
-    "serde",
-] }
-regex = "^1"
+ratatui-image = { version = "1.0.5", default-features = false, features = ["termion", "rustix", "serde"] }
+regex = "1.9.3"
 rustyline = "^12"
 serde = { version = "^1", features = ["derive"] }
 shadow-rs = { version = "^0", default-features = false }
