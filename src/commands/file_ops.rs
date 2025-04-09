@@ -183,7 +183,7 @@ pub fn copy_filename(app_state: &mut AppState) -> AppResult {
         .map(|entry| entry.file_name().to_string());
 
     if let Some(file_name) = entry_file_name {
-        copy_string_to_buffer(file_name)?;
+        copy_string_to_buffer(&file_name)?;
     }
     Ok(())
 }
@@ -204,7 +204,7 @@ pub fn copy_filename_without_extension(app_state: &mut AppState) -> AppResult {
         });
 
     if let Some(file_name) = entry_file_name {
-        copy_string_to_buffer(file_name)?;
+        copy_string_to_buffer(&file_name)?;
     }
     Ok(())
 }
@@ -234,7 +234,7 @@ pub fn copy_filepath(app_state: &mut AppState, all: bool) -> AppResult {
         }
     };
     if let Some(file_path) = entry_file_path {
-        copy_string_to_buffer(file_path)?;
+        copy_string_to_buffer(&file_path)?;
     }
     Ok(())
 }
@@ -248,24 +248,31 @@ pub fn copy_dirpath(app_state: &mut AppState) -> AppResult {
         .map(|dirlist| dirlist.file_path());
 
     if let Some(s) = opt_entry.and_then(|p| p.to_str().map(String::from)) {
-        copy_string_to_buffer(s)?
+        copy_string_to_buffer(&s)?
     };
     Ok(())
 }
 
-fn copy_string_to_buffer(string: String) -> AppResult {
+fn copy_string_to_buffer(s: &str) -> AppResult {
+    let escaped_string = escape_string(s);
     let clipboards = [
         (
             "wl-copy",
-            format!("printf '%s' '{}' | {}", string, "wl-copy"),
+            format!("printf '%s' '{}' | {}", escaped_string, "wl-copy"),
         ),
-        ("xsel", format!("printf '%s' '{}' | {} -ib", string, "xsel")),
-        ("pbcopy", format!("printf '%s' '{}' | {}", string, "pbcopy")),
+        (
+            "xsel",
+            format!("printf '%s' '{}' | {} -ib", escaped_string, "xsel"),
+        ),
+        (
+            "pbcopy",
+            format!("printf '%s' '{}' | {}", escaped_string, "pbcopy"),
+        ),
         (
             "xclip",
             format!(
                 "printf '%s' '{}' | {} -selection clipboard",
-                string, "xclip"
+                escaped_string, "xclip"
             ),
         ),
     ];
@@ -286,4 +293,8 @@ fn copy_string_to_buffer(string: String) -> AppResult {
         AppErrorKind::Clipboard,
         "Failed to copy to clipboard".to_string(),
     ))
+}
+
+pub fn escape_string(s: &str) -> String {
+    s.replace("'", "'\\''")
 }
