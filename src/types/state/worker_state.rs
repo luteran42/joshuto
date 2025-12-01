@@ -51,7 +51,7 @@ impl WorkerState {
         self.task_queue.is_empty()
     }
 
-    pub fn iter(&self) -> Iter<IoTask> {
+    pub fn iter(&self) -> Iter<'_, IoTask> {
         self.task_queue.iter()
     }
     pub fn worker_ref(&self) -> Option<&IoTaskStat> {

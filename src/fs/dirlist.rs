@@ -177,11 +177,11 @@ impl JoshutoDirList {
         self.update_visual_mode_selection();
     }
 
-    pub fn iter(&self) -> Iter<JoshutoDirEntry> {
+    pub fn iter(&self) -> Iter<'_, JoshutoDirEntry> {
         self.contents.iter()
     }
 
-    pub fn iter_mut(&mut self) -> IterMut<JoshutoDirEntry> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, JoshutoDirEntry> {
         self.contents.iter_mut()
     }
 

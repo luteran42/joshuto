@@ -229,7 +229,7 @@ fn print_version() -> Result<i32, AppError> {
     Ok(0)
 }
 
-fn restart() -> ! {
+fn restart() {
     use std::env;
     use std::ffi::CString;
     use std::os::unix::ffi::OsStringExt;
@@ -243,8 +243,7 @@ fn restart() -> ! {
         .collect();
 
     // Restart
-    nix::unistd::execvp(&exe, &arg).unwrap();
-    unreachable!();
+    nix::unistd::execvp(&exe, &arg).expect("Restart execvp failed!");
 }
 
 fn main() {

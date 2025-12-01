@@ -64,8 +64,8 @@ pub enum AppEvent {
     Filesystem(notify::Event),
 }
 
-#[derive(Default, Debug, Clone, Copy)]
-pub struct Config {}
+//#[derive(Default, Debug, Clone, Copy)]
+//pub struct Config {}
 
 /// A small event handler that wrap termion input and tick events. Each event
 /// type is handled in its own thread and returned to a common `Receiver`

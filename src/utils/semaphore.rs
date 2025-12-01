@@ -34,7 +34,7 @@ impl Semaphore {
     }
 
     /// Acquires a resource of this semaphore, returning an RAII guard
-    pub fn access(&self) -> SemaphoreGuard {
+    pub fn access(&self) -> SemaphoreGuard<'_> {
         self.acquire();
         SemaphoreGuard { sem: self }
     }
