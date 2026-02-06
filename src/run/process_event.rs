@@ -4,8 +4,8 @@ use std::path;
 use notify;
 use ratatui::layout::Rect;
 use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::termion::event::{Event, Key, MouseButton, MouseEvent};
 use signal_hook::consts::signal;
-use termion::event::{Event, Key, MouseButton, MouseEvent};
 use uuid::Uuid;
 
 use crate::commands::tab_ops;
@@ -46,7 +46,7 @@ pub fn poll_event_until_simple_keybind<'a>(
         };
 
         match event {
-            AppEvent::Termion(event) => {
+            AppEvent::TerminalEvent(event) => {
                 match event {
                     Event::Key(Key::Esc) => return None,
                     event => match keymap.get(&event) {
@@ -292,8 +292,16 @@ pub fn process_mouse(
         .split(rect);
 
     match event {
-        MouseEvent::Press(MouseButton::WheelUp, x, _) => {
-            if x < layout_rect[1].x {
+        MouseEvent::Press(MouseButton::WheelUp, x, y) => {
+            if y == 1 {
+                let command = Command::TabSwitch { offset: -1 };
+                if let Err(e) = command.execute(app_state, backend, keymap_t) {
+                    app_state
+                        .state
+                        .message_queue_mut()
+                        .push_error(e.to_string());
+                }
+            } else if x < layout_rect[1].x {
                 let command = Command::ParentCursorMoveUp { offset: 1 };
                 if let Err(e) = command.execute(app_state, backend, keymap_t) {
                     app_state
@@ -319,8 +327,16 @@ pub fn process_mouse(
                 }
             }
         }
-        MouseEvent::Press(MouseButton::WheelDown, x, _) => {
-            if x < layout_rect[1].x {
+        MouseEvent::Press(MouseButton::WheelDown, x, y) => {
+            if y == 1 {
+                let command = Command::TabSwitch { offset: 1 };
+                if let Err(e) = command.execute(app_state, backend, keymap_t) {
+                    app_state
+                        .state
+                        .message_queue_mut()
+                        .push_error(e.to_string());
+                }
+            } else if x < layout_rect[1].x {
                 let command = Command::ParentCursorMoveDown { offset: 1 };
                 if let Err(e) = command.execute(app_state, backend, keymap_t) {
                     app_state

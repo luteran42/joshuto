@@ -5,6 +5,7 @@ use std::thread;
 
 use crate::types::event::AppEvent;
 use crate::types::mimetype::ProgramEntry;
+use crate::utils::format::clear_screen;
 
 pub fn fork_execute<I, S>(
     entry: &ProgramEntry,
@@ -59,7 +60,7 @@ where
     command.args(paths);
 
     if entry.get_pager() {
-        println!("{}", termion::clear::All);
+        clear_screen();
         let pager_env = std::env::var("PAGER").unwrap_or_else(|_| String::from("tail"));
         let pager_args: Vec<&str> = pager_env.split_whitespace().collect();
 
@@ -90,7 +91,7 @@ pub fn wait_for_enter() -> io::Result<()> {
 
     let mut user_input = String::with_capacity(4);
     std::io::stdin().read_line(&mut user_input)?;
-    println!("{}", termion::clear::All);
+    clear_screen();
 
     Ok(())
 }
