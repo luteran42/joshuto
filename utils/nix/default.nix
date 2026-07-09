@@ -1,16 +1,19 @@
-{ lib
-, stdenv
-, rustPlatform
-, installShellFiles
-, darwin
-, version ? "git"
+{
+  lib,
+  stdenv,
+  rustPlatform,
+  toolchain,
+  nix-gitignore,
+  installShellFiles,
+  darwin,
+  version ? "git",
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage {
   pname = "joshuto";
   inherit version;
 
-  src = ../../.;
+  src = nix-gitignore.gitignoreSource [ ] (lib.cleanSource ../../.);
 
   cargoLock = {
     lockFile = ../../Cargo.lock;
@@ -23,7 +26,10 @@ rustPlatform.buildRustPackage rec {
     darwin.apple_sdk.frameworks.Foundation
   ];
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [
+    toolchain
+    installShellFiles
+  ];
 
   postInstall = ''
     installShellCompletion --cmd joshuto \
@@ -32,11 +38,7 @@ rustPlatform.buildRustPackage rec {
       --fish <($out/bin/joshuto completions fish)
   '';
 
-  patchPhase = ''
-    sed -i 's/env!("CARGO_PKG_VERSION")/\"${version}\"/g' src/main.rs
-  '';
-
-  meta = with lib;{
+  meta = with lib; {
     description = "Ranger-like terminal file manager written in Rust";
     homepage = "https://github.com/kamiyaa/joshuto";
     license = licenses.lgpl3Only;

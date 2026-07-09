@@ -363,87 +363,86 @@ pub fn process_mouse(
             }
         }
         MouseEvent::Press(button @ MouseButton::Left, x, y)
-        | MouseEvent::Press(button @ MouseButton::Right, x, y) => {
-            if y > layout_rect[1].y && y <= layout_rect[1].y + layout_rect[1].height {
-                let (dirlist, panel) = if x < layout_rect[1].x {
-                    (
-                        app_state
-                            .state
-                            .tab_state_mut()
-                            .curr_tab_mut()
-                            .parent_list_ref(),
-                        Some(Panel::Parent),
-                    )
-                } else if x < layout_rect[2].x {
-                    (
-                        app_state
-                            .state
-                            .tab_state_mut()
-                            .curr_tab_mut()
-                            .curr_list_ref(),
-                        Some(Panel::Current),
-                    )
-                } else {
-                    (
-                        app_state
-                            .state
-                            .tab_state_mut()
-                            .curr_tab_mut()
-                            .child_list_ref(),
-                        Some(Panel::Preview),
-                    )
-                };
-                if let Some(dirlist) = dirlist {
-                    let skip_dist = dirlist.first_index_for_viewport();
-                    let new_index = skip_dist + (y - layout_rect[1].y - 1) as usize;
-                    match panel {
-                        Some(Panel::Parent) => {
-                            if let Err(e) =
-                                parent_cursor_move::parent_cursor_move(app_state, new_index)
-                            {
+        | MouseEvent::Press(button @ MouseButton::Right, x, y)
+            if y > layout_rect[1].y && y <= layout_rect[1].y + layout_rect[1].height =>
+        {
+            let (dirlist, panel) = if x < layout_rect[1].x {
+                (
+                    app_state
+                        .state
+                        .tab_state_mut()
+                        .curr_tab_mut()
+                        .parent_list_ref(),
+                    Some(Panel::Parent),
+                )
+            } else if x < layout_rect[2].x {
+                (
+                    app_state
+                        .state
+                        .tab_state_mut()
+                        .curr_tab_mut()
+                        .curr_list_ref(),
+                    Some(Panel::Current),
+                )
+            } else {
+                (
+                    app_state
+                        .state
+                        .tab_state_mut()
+                        .curr_tab_mut()
+                        .child_list_ref(),
+                    Some(Panel::Preview),
+                )
+            };
+            if let Some(dirlist) = dirlist {
+                let skip_dist = dirlist.first_index_for_viewport();
+                let new_index = skip_dist + (y - layout_rect[1].y - 1) as usize;
+                match panel {
+                    Some(Panel::Parent) => {
+                        if let Err(e) = parent_cursor_move::parent_cursor_move(app_state, new_index)
+                        {
+                            app_state
+                                .state
+                                .message_queue_mut()
+                                .push_error(e.to_string());
+                        };
+                        if button == MouseButton::Left {
+                            let command = Command::ChangeDirectory {
+                                path: path::PathBuf::from(".."),
+                            };
+                            if let Err(e) = command.execute(app_state, backend, keymap_t) {
                                 app_state
                                     .state
                                     .message_queue_mut()
                                     .push_error(e.to_string());
-                            };
-                            if button == MouseButton::Left {
-                                let command = Command::ChangeDirectory {
-                                    path: path::PathBuf::from(".."),
-                                };
-                                if let Err(e) = command.execute(app_state, backend, keymap_t) {
-                                    app_state
-                                        .state
-                                        .message_queue_mut()
-                                        .push_error(e.to_string());
-                                }
-                            };
-                        }
-                        Some(Panel::Current) => {
-                            cursor_move::cursor_move(app_state, new_index);
-                            if button == MouseButton::Right {
-                                let command = Command::OpenFile;
-                                if let Err(e) = command.execute(app_state, backend, keymap_t) {
-                                    app_state
-                                        .state
-                                        .message_queue_mut()
-                                        .push_error(e.to_string());
-                                }
                             }
-                        }
-                        Some(Panel::Preview) => {
-                            children_cursor_move(app_state, new_index);
-                            if button == MouseButton::Left {
-                                let command = Command::OpenFile;
-                                if let Err(e) = command.execute(app_state, backend, keymap_t) {
-                                    app_state
-                                        .state
-                                        .message_queue_mut()
-                                        .push_error(e.to_string());
-                                }
-                            }
-                        }
-                        _ => {}
+                        };
                     }
+                    Some(Panel::Current) => {
+                        cursor_move::cursor_move(app_state, new_index);
+                        if button == MouseButton::Right {
+                            let command = Command::OpenFile;
+                            if let Err(e) = command.execute(app_state, backend, keymap_t) {
+                                app_state
+                                    .state
+                                    .message_queue_mut()
+                                    .push_error(e.to_string());
+                            }
+                        }
+                    }
+                    Some(Panel::Preview) => {
+                        children_cursor_move(app_state, new_index);
+                        if button == MouseButton::Left {
+                            let command = Command::OpenFile;
+                            if let Err(e) = command.execute(app_state, backend, keymap_t) {
+                                app_state
+                                    .state
+                                    .message_queue_mut()
+                                    .push_error(e.to_string());
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
