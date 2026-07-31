@@ -56,9 +56,7 @@ impl CommandComment for Command {
                 (false, true) => "Paste, skip existing files",
                 _ => "Paste",
             },
-            Self::CancelFiles {
-                options: FileOperationOptions { .. },
-            } => "Unmark and cancel the current file operation",
+            Self::CancelFiles => "Unmark and cancel the current file operation",
             Self::DeleteFiles { .. } => "Delete selected files",
 
             Self::CursorMoveUp { .. } => "Move cursor up",

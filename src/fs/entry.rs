@@ -79,11 +79,7 @@ impl JoshutoDirEntry {
     }
 
     pub fn is_selected(&self) -> bool {
-        self.permanent_selected
-            || self.visual_mode_selected
-            || self.marked_cut
-            || self.marked_copy
-            || self.marked_sym
+        self.permanent_selected || self.visual_mode_selected
     }
 
     pub fn is_permanent_selected(&self) -> bool {
@@ -104,12 +100,18 @@ impl JoshutoDirEntry {
         self.marked_sym
     }
 
+    pub fn clear_marks(&mut self) {
+        self.marked_cut = false;
+        self.marked_copy = false;
+        self.marked_sym = false;
+    }
+
     pub fn set_all_selected(&mut self, selected: bool) {
         self.set_permanent_selected(selected);
         self.set_visual_mode_selected(selected);
-        self.set_mark_cut_selected(selected);
-        self.set_mark_copy_selected(selected);
-        self.set_mark_sym_selected(selected);
+        if !selected {
+            self.clear_marks();
+        }
     }
 
     pub fn set_permanent_selected(&mut self, selected: bool) {
@@ -140,6 +142,40 @@ impl std::fmt::Display for JoshutoDirEntry {
 impl std::convert::AsRef<str> for JoshutoDirEntry {
     fn as_ref(&self) -> &str {
         self.file_name()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::option::display::DisplayOption;
+
+    use super::JoshutoDirEntry;
+
+    fn entry() -> JoshutoDirEntry {
+        let direntry = walkdir::WalkDir::new("Cargo.toml")
+            .max_depth(0)
+            .into_iter()
+            .next()
+            .unwrap()
+            .unwrap();
+        let base = direntry.path().parent().unwrap();
+        JoshutoDirEntry::from(&direntry, base, &DisplayOption::default()).unwrap()
+    }
+
+    #[test]
+    fn operation_marks_are_not_selections() {
+        let mut entry = entry();
+        entry.set_mark_copy_selected(true);
+
+        assert!(entry.is_marked_copy());
+        assert!(!entry.is_selected());
+
+        entry.set_visual_mode_selected(true);
+        assert!(entry.is_selected());
+
+        entry.clear_marks();
+        assert!(!entry.is_marked_copy());
+        assert!(entry.is_selected());
     }
 }
 

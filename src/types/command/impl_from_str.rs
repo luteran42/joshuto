@@ -290,12 +290,8 @@ impl std::str::FromStr for Command {
             }
             Ok(Self::PasteFiles { options })
         } else if command == CMD_CANCEL_FILES {
-            let mut options = FileOperationOptions::default();
             match arg {
-                "" => {
-                    options.cancel = true;
-                    Ok(Self::CancelFiles { options })
-                }
+                "" => Ok(Self::CancelFiles),
                 _ => Err(AppError::new(
                     AppErrorKind::UnrecognizedArgument,
                     format!("{}: unkown option '{}'", command, arg),
@@ -670,5 +666,31 @@ impl std::str::FromStr for Command {
                 format!("Unrecognized command '{}'", command),
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::constants::command_name::CMD_CANCEL_FILES;
+    use crate::traits::app_execute::AppCommand;
+
+    use super::Command;
+
+    #[test]
+    fn cancel_file_operation_has_its_own_command_identity() {
+        let command = Command::from_str(CMD_CANCEL_FILES).unwrap();
+
+        match &command {
+            Command::CancelFiles => {}
+            _ => panic!("expected cancel command"),
+        }
+        assert_eq!(command.command(), CMD_CANCEL_FILES);
+    }
+
+    #[test]
+    fn cancel_file_operation_rejects_arguments() {
+        assert!(Command::from_str("cancel_file_operation --unexpected").is_err());
     }
 }

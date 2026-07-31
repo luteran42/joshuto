@@ -52,9 +52,6 @@ pub struct FileOperationOptions {
     pub overwrite: bool,
     pub skip_exist: bool,
 
-    // cancel file operations
-    pub cancel: bool,
-
     // delete
     pub permanently: bool,
 }

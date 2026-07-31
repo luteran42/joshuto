@@ -1,108 +1,72 @@
 use std::process::{Command, Stdio};
+use std::{collections::HashSet, path::PathBuf};
 
 use crate::error::{AppError, AppErrorKind, AppResult};
-use crate::fs::JoshutoDirList;
 use crate::types::io::{FileOperation, FileOperationOptions, IoTask};
 use crate::types::state::{AppState, LocalStateState};
 
-fn new_local_state(app_state: &mut AppState, file_op: FileOperation) -> Option<()> {
+fn selected_paths(app_state: &AppState) -> Option<Vec<PathBuf>> {
     let list = app_state
         .state
         .tab_state_ref()
         .curr_tab_ref()
         .curr_list_ref()?;
-    let selected = list.get_selected_paths();
+    Some(list.get_selected_paths())
+}
 
+fn set_local_state(app_state: &mut AppState, file_op: FileOperation, paths: Vec<PathBuf>) {
     let mut local_state = LocalStateState::new();
-    local_state.set_paths(selected.into_iter());
+    local_state.set_paths(paths.into_iter());
     local_state.set_file_op(file_op);
 
     app_state.state.set_local_state(local_state);
-    Some(())
 }
 
-fn mark_entries(app_state: &mut AppState, op: FileOperation) {
-    let tab = app_state.state.tab_state_mut().curr_tab_mut();
-
-    if let Some(curr_list) = tab.curr_list_mut() {
-        curr_list.iter_mut().for_each(|entry| {
-            entry.set_mark_cut_selected(false);
-            entry.set_mark_copy_selected(false);
-            entry.set_mark_sym_selected(false);
-        });
-
-        match curr_list.selected_count() {
-            count if count != 0 => {
-                curr_list.iter_mut().for_each(|entry| match op {
-                    FileOperation::Cut if entry.is_permanent_selected() => {
-                        entry.set_mark_cut_selected(true)
-                    }
-                    FileOperation::Copy if entry.is_permanent_selected() => {
-                        entry.set_mark_copy_selected(true)
-                    }
-                    FileOperation::Symlink if entry.is_permanent_selected() => {
-                        entry.set_mark_sym_selected(true)
-                    }
-                    _ => {}
-                });
-            }
-            _ => {
-                if let Some(entry) = curr_list.curr_entry_mut() {
-                    match op {
-                        FileOperation::Cut => entry.set_mark_cut_selected(true),
-                        FileOperation::Copy => entry.set_mark_copy_selected(true),
-                        FileOperation::Symlink => entry.set_mark_sym_selected(true),
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn unmark_entries(curr_tab: &mut JoshutoDirList) {
-    if curr_tab.selected_count() != 0 {
-        curr_tab.iter_mut().for_each(|entry| {
-            if entry.is_marked_cut() {
-                entry.set_mark_cut_selected(false)
-            } else if entry.is_marked_copy() {
-                entry.set_mark_copy_selected(false)
-            } else if entry.is_marked_sym() {
-                entry.set_mark_sym_selected(false)
-            }
-        })
-    } else if let Some(entry) = curr_tab.curr_entry_mut() {
-        if entry.is_marked_cut() {
-            entry.set_mark_cut_selected(false)
-        } else if entry.is_marked_copy() {
-            entry.set_mark_copy_selected(false)
-        } else if entry.is_marked_sym() {
-            entry.set_mark_sym_selected(false)
-        }
-    }
-}
-
-fn unmark_and_cancel_all(app_state: &mut AppState) {
+fn clear_marks(app_state: &mut AppState) {
     app_state
         .state
         .tab_state_mut()
         .iter_mut()
-        .for_each(|entry| {
-            if let Some(curr_list) = entry.1.curr_list_mut() {
-                unmark_entries(curr_list);
-            }
-            if let Some(par_list) = entry.1.parent_list_mut() {
-                unmark_entries(par_list);
-            }
-            if let Some(child_list) = entry.1.child_list_mut() {
-                unmark_entries(child_list);
-            }
+        .for_each(|(_, tab)| {
+            tab.history_mut().values_mut().for_each(|list| {
+                list.iter_mut().for_each(|entry| entry.clear_marks());
+            });
+        });
+}
+
+fn mark_entries(app_state: &mut AppState, op: FileOperation, paths: &[PathBuf]) {
+    let paths: HashSet<&std::path::Path> = paths.iter().map(PathBuf::as_path).collect();
+
+    app_state
+        .state
+        .tab_state_mut()
+        .iter_mut()
+        .for_each(|(_, tab)| {
+            tab.history_mut().values_mut().for_each(|list| {
+                list.iter_mut()
+                    .filter(|entry| paths.contains(entry.file_path()))
+                    .for_each(|entry| match op {
+                        FileOperation::Cut => entry.set_mark_cut_selected(true),
+                        FileOperation::Copy => entry.set_mark_copy_selected(true),
+                        FileOperation::Symlink => entry.set_mark_sym_selected(true),
+                        FileOperation::Delete => {}
+                    });
+            });
         });
 }
 
 pub fn perform_file_operation(app_state: &mut AppState, op: FileOperation) -> AppResult {
-    mark_entries(app_state, op);
-    new_local_state(app_state, op);
+    let paths = selected_paths(app_state).unwrap_or_default();
+    if paths.is_empty() {
+        return Err(AppError::new(
+            AppErrorKind::InvalidParameters,
+            "No files selected".to_string(),
+        ));
+    }
+
+    clear_marks(app_state);
+    mark_entries(app_state, op, &paths);
+    set_local_state(app_state, op, paths);
     Ok(())
 }
 
@@ -122,12 +86,12 @@ pub fn create_io_task(
     options: FileOperationOptions,
 ) -> AppResult {
     let local_state = app_state.state.take_local_state().ok_or_else(|| {
-        let err_msg = "No files selected1";
+        let err_msg = "No files selected";
         AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string())
     })?;
 
     if local_state.paths.is_empty() {
-        let err_msg = "No files selected2";
+        let err_msg = "No files selected";
         let err = AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string());
         return Err(err);
     }
@@ -154,11 +118,6 @@ pub fn create_io_paste_task(app_state: &mut AppState, options: FileOperationOpti
         let err_msg = "No files selected";
         let err = AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string());
         return Err(err);
-    } else if !local_state.paths.is_empty() && options.cancel {
-        let err_msg = "File operation cancelled!";
-        let err = AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string());
-        unmark_and_cancel_all(app_state);
-        return Err(err);
     }
 
     let dest = app_state
@@ -170,6 +129,22 @@ pub fn create_io_paste_task(app_state: &mut AppState, options: FileOperationOpti
     let worker_thread = IoTask::new(local_state.file_op, local_state.paths, dest, options);
     app_state.state.worker_state_mut().push_task(worker_thread);
 
+    Ok(())
+}
+
+pub fn cancel_file_operation(app_state: &mut AppState) -> AppResult {
+    let cancelled = app_state.state.take_local_state().is_some();
+    clear_marks(app_state);
+
+    let message = if cancelled {
+        "File operation cancelled"
+    } else {
+        "No file operation to cancel"
+    };
+    app_state
+        .state
+        .message_queue_mut()
+        .push_info(message.to_string());
     Ok(())
 }
 

@@ -62,7 +62,7 @@ impl AppExecute for Command {
                 file_ops::create_io_task(app_state, FileOperation::Symlink, options)
             }
             Self::PasteFiles { options } => file_ops::create_io_paste_task(app_state, *options),
-            Self::CancelFiles { options } => file_ops::create_io_paste_task(app_state, *options),
+            Self::CancelFiles => file_ops::cancel_file_operation(app_state),
 
             Self::DeleteFiles {
                 background,

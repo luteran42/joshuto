@@ -324,6 +324,8 @@ All methods (except `reverse`) support the `--reverse` flag:
 
 ### `paste_files`: move/copy files stored from a previous `cut_files` or `copy_files` command
 
+### `cancel_file_operation`: clear the pending cut/copy operation and its visual marks
+
 ### `delete_files`: delete selected files (or current file if none were selected).
 
 - `--foreground=true`: will delete files in the foreground
