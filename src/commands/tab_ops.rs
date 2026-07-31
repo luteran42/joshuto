@@ -171,6 +171,12 @@ pub fn new_tab(app_state: &mut AppState, mode: &NewTabMode, last: bool) -> AppRe
     if new_tab_path.exists() && new_tab_path.is_dir() {
         let id = Uuid::new_v4();
         let mut new_tab_history = JoshutoHistory::new();
+        let source_history = app_state
+            .state
+            .tab_state_ref()
+            .curr_tab_ref()
+            .history_ref()
+            .clone();
         let tab_display_options = app_state
             .config
             .display_options
@@ -178,7 +184,7 @@ pub fn new_tab(app_state: &mut AppState, mode: &NewTabMode, last: bool) -> AppRe
             .clone();
         let dirlists = generate_entries_to_root(
             new_tab_path.as_path(),
-            &new_tab_history,
+            &source_history,
             app_state.state.ui_state_ref(),
             &app_state.config.display_options,
             &tab_display_options,
