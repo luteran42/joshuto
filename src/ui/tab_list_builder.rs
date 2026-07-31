@@ -148,7 +148,7 @@ fn factor_tab_bar_sequence(
         .enumerate()
         .map(|(ix, &r)| {
             if labels_are_indexed {
-                format!("{}: {}", ix + 1, &r.long)
+                format!("{}: {}", ix + 1, r.long)
             } else {
                 String::from(&r.long)
             }
@@ -197,7 +197,7 @@ fn factor_tab_bar_sequence(
         .enumerate()
         .map(|(ix, &r)| {
             if labels_are_indexed {
-                format!("{}: {}", ix + 1, &r.short)
+                format!("{}: {}", ix + 1, r.short)
             } else {
                 String::from(&r.short)
             }
@@ -260,7 +260,7 @@ fn factor_tab_bar_sequence(
             current_index,
             format!(
                 "{}…",
-                &all_labels_as_short[current_index].trunc(available_width - 1)
+                all_labels_as_short[current_index].trunc(available_width - 1)
             ),
         )];
     };
@@ -456,7 +456,7 @@ fn factor_tab_bar_spans_from_sequence<'a>(
             TabBarElement::ScrollFront(s) => Span::styled(
                 format!(
                     "{}{}{}",
-                    &config.chars.scroll_front_prestring, s, &config.chars.scroll_front_poststring,
+                    config.chars.scroll_front_prestring, s, config.chars.scroll_front_poststring,
                 ),
                 config.styles.scroll_front,
             ),
@@ -471,7 +471,7 @@ fn factor_tab_bar_spans_from_sequence<'a>(
             TabBarElement::ScrollBack(s) => Span::styled(
                 format!(
                     "{}{}{}",
-                    &config.chars.scroll_back_prestring, s, &config.chars.scroll_back_poststring,
+                    config.chars.scroll_back_prestring, s, config.chars.scroll_back_poststring,
                 ),
                 config.styles.scroll_back,
             ),
