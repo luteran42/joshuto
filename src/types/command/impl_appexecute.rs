@@ -206,6 +206,8 @@ impl AppExecute for Command {
                 bookmark::change_directory_bookmark(app_state, backend)
             }
 
+            Self::CalculateCumulativeSize => cumulative_size::calculate_cumulative_size(app_state),
+
             Self::CustomSearch(words) => {
                 custom_search::custom_search(app_state, backend, words.as_slice(), false)
             }

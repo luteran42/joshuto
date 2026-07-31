@@ -69,6 +69,9 @@ pub fn create_dirlist_with_history(
                     entry.set_mark_sym_selected(former_entry.is_marked_sym());
                     entry.set_permanent_selected(former_entry.is_permanent_selected());
                     entry.set_visual_mode_selected(former_entry.is_visual_mode_selected());
+                    if let Some(size) = former_entry.metadata.cumulative_size() {
+                        entry.metadata.update_cumulative_size(size);
+                    }
                 } else {
                     entry.set_all_selected(false);
                 }
