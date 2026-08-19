@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use super::{app_raw::AppConfigRaw, tab::TabOption};
 use crate::{
@@ -12,6 +13,7 @@ use crate::{
     },
 };
 
+/// Top-level application settings, loaded from `joshuto.toml`.
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     pub use_trash: bool,
@@ -28,9 +30,11 @@ pub struct AppConfig {
     pub preview_options: PreviewOption,
     pub search_options: SearchOption,
     pub tab_options: TabOption,
+    pub shell: PathBuf,
 }
 
 impl AppConfig {
+    /// Parses the built-in default `joshuto.toml`, returning an error only if it's malformed.
     pub fn default_res() -> AppResult<Self> {
         let raw: AppConfigRaw = toml::from_str(APP_CONFIG)?;
         Ok(Self::from(raw))
@@ -70,6 +74,7 @@ impl From<AppConfigRaw> for AppConfig {
             search_options: raw.search_options,
             tab_options: raw.tab_options,
             custom_commands: raw.custom_commands,
+            shell: raw.shell,
         }
     }
 }

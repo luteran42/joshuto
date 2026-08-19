@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{style_raw::AppStyleRaw, tab_raw::TabThemeRaw};
 
+/// TOML-deserializable form of [`AppTheme`](super::AppTheme).
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct AppThemeRaw {
     #[serde(default)]
@@ -26,6 +27,8 @@ pub struct AppThemeRaw {
     pub link_invalid: AppStyleRaw,
     #[serde(default)]
     pub socket: AppStyleRaw,
+    #[serde(default)]
+    pub border: AppStyleRaw,
     #[serde(default)]
     pub ext: HashMap<String, AppStyleRaw>,
     #[serde(default)]

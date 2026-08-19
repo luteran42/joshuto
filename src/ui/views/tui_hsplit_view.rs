@@ -6,13 +6,17 @@ use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
 
 use crate::types::state::AppState;
 use crate::ui::widgets::{TuiDirListDetailed, TuiFooter, TuiTopBar};
+use crate::THEME_T;
 
+/// A two-pane layout showing the current and next tab's listings side by side (paired by even
+/// and odd tab index).
 pub struct TuiHSplitView<'a> {
     pub app_state: &'a AppState,
     pub show_bottom_status: bool,
 }
 
 impl<'a> TuiHSplitView<'a> {
+    /// Creates the horizontal-split view for `app_state`.
     pub fn new(app_state: &'a AppState) -> Self {
         Self {
             app_state,
@@ -37,19 +41,27 @@ impl Widget for TuiHSplitView<'_> {
 
             let layout = calculate_layout_with_borders(area, constraints);
 
-            let block = Block::default().borders(Borders::ALL);
+            let border_style = THEME_T.border.as_style();
+
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(border_style);
             let inner = block.inner(area);
             block.render(area, buf);
 
             let layout_rect = Layout::default()
                 .direction(Direction::Horizontal)
-                .constraints(constraints.as_ref())
+                .constraints(constraints)
                 .split(inner);
 
-            let block = Block::default().borders(Borders::RIGHT);
+            let block = Block::default()
+                .borders(Borders::RIGHT)
+                .border_style(border_style);
             block.render(layout_rect[0], buf);
 
-            let block = Block::default().borders(Borders::LEFT);
+            let block = Block::default()
+                .borders(Borders::LEFT)
+                .border_style(border_style);
             block.render(layout_rect[1], buf);
 
             layout
@@ -156,7 +168,7 @@ impl Widget for TuiHSplitView<'_> {
 fn calculate_layout(area: Rect, constraints: &[Constraint; 2]) -> Vec<Rect> {
     let mut layout_rect = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(constraints.as_ref())
+        .constraints(constraints)
         .split(area)
         .to_vec();
 
@@ -177,7 +189,7 @@ fn calculate_layout_with_borders(area: Rect, constraints: &[Constraint; 2]) -> V
 
     let layout_rect = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(constraints.as_ref())
+        .constraints(constraints)
         .split(inner);
 
     let block = Block::default().borders(Borders::RIGHT);

@@ -70,16 +70,20 @@ pub fn perform_file_operation(app_state: &mut AppState, op: FileOperation) -> Ap
     Ok(())
 }
 
+/// Implements `cut_files`: stashes the current selection to be cut on the next paste.
 pub fn cut(app_state: &mut AppState) -> AppResult {
     perform_file_operation(app_state, FileOperation::Cut)?;
     Ok(())
 }
 
+/// Implements `copy_files`: stashes the current selection to be copied on the next paste.
 pub fn copy(app_state: &mut AppState) -> AppResult {
     perform_file_operation(app_state, FileOperation::Copy)?;
     Ok(())
 }
 
+/// Queues `operation` (with a fixed local-state selection) as a background task targeting the
+/// current directory. Used by `symlink_files`, which doesn't go through the cut/copy/paste flow.
 pub fn create_io_task(
     app_state: &mut AppState,
     operation: FileOperation,
@@ -108,6 +112,8 @@ pub fn create_io_task(
     Ok(())
 }
 
+/// Implements `paste_files`: queues the previously cut/copied selection's operation as a
+/// background task targeting the current directory.
 pub fn create_io_paste_task(app_state: &mut AppState, options: FileOperationOptions) -> AppResult {
     let local_state = app_state.state.take_local_state().ok_or_else(|| {
         let err_msg = "No files selected";
@@ -148,6 +154,7 @@ pub fn cancel_file_operation(app_state: &mut AppState) -> AppResult {
     Ok(())
 }
 
+/// Implements `copy_filename`: copies the current entry's file name to the system clipboard.
 pub fn copy_filename(app_state: &mut AppState) -> AppResult {
     let entry_file_name = app_state
         .state
@@ -163,6 +170,8 @@ pub fn copy_filename(app_state: &mut AppState) -> AppResult {
     Ok(())
 }
 
+/// Implements `copy_filename_without_extension`: copies the current entry's file name, minus
+/// its extension, to the system clipboard.
 pub fn copy_filename_without_extension(app_state: &mut AppState) -> AppResult {
     let entry_file_name = app_state
         .state
@@ -184,6 +193,8 @@ pub fn copy_filename_without_extension(app_state: &mut AppState) -> AppResult {
     Ok(())
 }
 
+/// Implements `copy_filepath`: copies the current entry's full path (or every selected entry's
+/// path, newline-separated, if `all`) to the system clipboard.
 pub fn copy_filepath(app_state: &mut AppState, all: bool) -> AppResult {
     let selected = app_state
         .state
@@ -214,6 +225,7 @@ pub fn copy_filepath(app_state: &mut AppState, all: bool) -> AppResult {
     Ok(())
 }
 
+/// Implements `copy_dirpath`: copies the current directory's path to the system clipboard.
 pub fn copy_dirpath(app_state: &mut AppState) -> AppResult {
     let opt_entry = app_state
         .state
@@ -228,6 +240,7 @@ pub fn copy_dirpath(app_state: &mut AppState) -> AppResult {
     Ok(())
 }
 
+/// Copies `s` to the system clipboard, trying `wl-copy`, `xsel`, `pbcopy`, then `xclip` in order.
 fn copy_string_to_buffer(s: &str) -> AppResult {
     let escaped_string = escape_string(s);
     let clipboards = [
@@ -270,6 +283,7 @@ fn copy_string_to_buffer(s: &str) -> AppResult {
     ))
 }
 
+/// Escapes single quotes in `s` for safe interpolation into a single-quoted shell string.
 pub fn escape_string(s: &str) -> String {
     s.replace("'", "'\\''")
 }

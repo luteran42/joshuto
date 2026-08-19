@@ -8,6 +8,8 @@ use crate::types::state::AppState;
 use crate::ui::views::{DummyListener, TuiTextField};
 use crate::ui::AppBackend;
 
+/// Implements the `:` command line: prompts for input (pre/post-filled with `prefix`/`suffix`),
+/// records it in history, expands any matching alias, and parses and executes the result.
 pub fn read_and_execute(
     app_state: &mut AppState,
     backend: &mut AppBackend,
@@ -16,6 +18,7 @@ pub fn read_and_execute(
     suffix: &str,
 ) -> AppResult {
     app_state.flush_event();
+
     let mut listener = DummyListener {};
     let user_input: Option<String> = TuiTextField::default()
         .prompt(":")

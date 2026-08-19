@@ -8,6 +8,7 @@ xdg_open = false
 xdg_open_fork = false
 case_insensitive_ext = false
 zoxide_update = false
+#shell = "bash"
 
 custom_commands = []
 
@@ -21,6 +22,7 @@ collapse_preview = true
 column_ratio = [1, 4, 4]
 scroll_offset = 6
 show_borders = true
+show_hostname = true
 show_hidden = false
 show_icons = false
 # none, absolute, relative

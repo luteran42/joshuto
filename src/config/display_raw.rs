@@ -7,6 +7,7 @@ use crate::{
 
 use super::sort_option_raw::SortOptionRaw;
 
+/// TOML-deserializable form of [`DisplayOption`](crate::types::option::display::DisplayOption).
 #[derive(Clone, Debug, Deserialize)]
 pub struct DisplayOptionRaw {
     #[serde(default = "default_mode")]
@@ -21,6 +22,8 @@ pub struct DisplayOptionRaw {
     pub scroll_offset: usize,
     #[serde(default = "default_true")]
     pub show_borders: bool,
+    #[serde(default = "default_true")]
+    pub show_hostname: bool,
     #[serde(default)]
     pub show_hidden: bool,
     #[serde(default)]
@@ -44,6 +47,7 @@ impl std::default::Default for DisplayOptionRaw {
             column_ratio: None,
             scroll_offset: 4,
             show_borders: true,
+            show_hostname: true,
             show_hidden: false,
             show_icons: false,
             preserve_selection: true,

@@ -6,13 +6,19 @@ use std::process::{Command, Stdio};
 
 use super::reload;
 
+/// How a subprocess command should be run.
 #[derive(Debug, Clone)]
 pub enum SubprocessCallMode {
+    /// `shell`: run via the configured shell, taking over the terminal.
     Interactive,
+    /// `spawn`: run detached, without taking over the terminal.
     Spawn,
+    /// `capture`: run and capture its stdout for later use (e.g. by `stdout`).
     Capture,
 }
 
+/// Returns the selected entries (or just the current entry, if none selected) as
+/// `(name, path)` pairs.
 pub fn current_files(app_state: &AppState) -> Vec<(&str, &Path)> {
     let mut result = Vec::new();
     if let Some(curr_list) = app_state
@@ -40,43 +46,65 @@ fn current_dir(app_state: &AppState) -> &Path {
     app_state.state.tab_state_ref().curr_tab_ref().get_cwd()
 }
 
+fn shell_quote(val: &str) -> String {
+    format!("'{}'", val.replace('\'', "'\\''"))
+}
+
+/// Builds and runs the subprocess for `words`, expanding `%s`/`%p`/`%d` placeholders (shell-quoted
+/// in `Interactive` mode, as separate args otherwise), per `mode`.
 fn execute_sub_process(
     app_state: &mut AppState,
     words: &[String],
     mode: SubprocessCallMode,
 ) -> std::io::Result<()> {
     let current_files = current_files(app_state);
-    let command_base = if current_files.len() == 1 {
-        let (file_name, file_path) = current_files[0];
+    let current_dir = current_dir(app_state);
 
-        words[0]
-            .replace("%s", file_name)
-            .replace("%p", &file_path.to_string_lossy())
+    let mut command: Command;
+    if let SubprocessCallMode::Interactive = mode {
+        command = Command::new(&app_state.config.shell);
+        command.arg("-c");
+        let files_str = current_files
+            .iter()
+            .map(|(n, _)| shell_quote(n))
+            .collect::<Vec<String>>()
+            .join(" ");
+        let dirs_str = current_files
+            .iter()
+            .map(|(_, p)| shell_quote(&p.to_string_lossy()))
+            .collect::<Vec<String>>()
+            .join(" ");
+        command.arg(
+            words
+                .join(" ")
+                .replace("%d", &shell_quote(&current_dir.to_string_lossy()))
+                .replace("%s", &files_str)
+                .replace("%p", &dirs_str),
+        );
     } else {
-        words[0].clone()
-    };
-
-    let mut command = Command::new(command_base);
-    for word in words.iter().skip(1) {
-        match word.as_str() {
-            "%s" => {
-                for (file_name, _) in &current_files {
-                    command.arg(file_name);
+        command = Command::new(words[0].clone());
+        for word in words.iter().skip(1) {
+            match word.as_str() {
+                "%s" => {
+                    for (file_name, _) in &current_files {
+                        command.arg(file_name);
+                    }
+                }
+                "%p" => {
+                    for (_, file_path) in &current_files {
+                        command.arg(file_path);
+                    }
+                }
+                "%d" => {
+                    command.arg(current_dir);
+                }
+                s => {
+                    command.arg(s);
                 }
             }
-            "%p" => {
-                for (_, file_path) in &current_files {
-                    command.arg(file_path);
-                }
-            }
-            "%d" => {
-                command.arg(current_dir(app_state));
-            }
-            s => {
-                command.arg(s);
-            }
-        };
+        }
     }
+
     match mode {
         SubprocessCallMode::Interactive => {
             let status = command.status();

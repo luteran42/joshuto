@@ -1,3 +1,5 @@
+//! Fits the tab bar (tab paths, dividers, scroll tags) into the available terminal width.
+
 use std::path::Path;
 
 use ratatui::text::Span;
@@ -29,6 +31,8 @@ use crate::HOME_DIR;
 //     * Case 4d: The active tab fits only without scroll tags and pre- and postfix
 //               and further shortened with ellipsis
 
+/// A tab's directory path in both long (full path, `~`-abbreviated) and short (base name) form,
+/// used to fit the tab bar into however much width is available.
 pub struct TabLabel {
     long: String,
     short: String,
@@ -426,33 +430,28 @@ fn factor_tab_bar_spans_from_sequence<'a>(
         .into_iter()
         .map(|e| match e {
             TabBarElement::PrefixA => {
-                Span::styled(String::from(&config.chars.prefix_a), config.styles.prefix_a)
+                Span::styled(config.chars.prefix_a.clone(), config.styles.prefix_a)
             }
-            TabBarElement::PostfixA => Span::styled(
-                String::from(&config.chars.postfix_a),
-                config.styles.postfix_a,
-            ),
+            TabBarElement::PostfixA => {
+                Span::styled(config.chars.postfix_a.clone(), config.styles.postfix_a)
+            }
             TabBarElement::TabA(_ix, s) => Span::styled(s, config.styles.tab_a),
             TabBarElement::PrefixI => {
-                Span::styled(String::from(&config.chars.prefix_i), config.styles.prefix_i)
+                Span::styled(config.chars.prefix_i.clone(), config.styles.prefix_i)
             }
-            TabBarElement::PostfixI => Span::styled(
-                String::from(&config.chars.postfix_i),
-                config.styles.postfix_i,
-            ),
+            TabBarElement::PostfixI => {
+                Span::styled(config.chars.postfix_i.clone(), config.styles.postfix_i)
+            }
             TabBarElement::TabI(_ix, s) => Span::styled(s, config.styles.tab_i),
-            TabBarElement::DividerII => Span::styled(
-                String::from(&config.chars.divider),
-                config.styles.divider_ii,
-            ),
-            TabBarElement::DividerAI => Span::styled(
-                String::from(&config.chars.divider),
-                config.styles.divider_ai,
-            ),
-            TabBarElement::DividerIA => Span::styled(
-                String::from(&config.chars.divider),
-                config.styles.divider_ia,
-            ),
+            TabBarElement::DividerII => {
+                Span::styled(config.chars.divider.clone(), config.styles.divider_ii)
+            }
+            TabBarElement::DividerAI => {
+                Span::styled(config.chars.divider.clone(), config.styles.divider_ai)
+            }
+            TabBarElement::DividerIA => {
+                Span::styled(config.chars.divider.clone(), config.styles.divider_ia)
+            }
             TabBarElement::ScrollFront(s) => Span::styled(
                 format!(
                     "{}{}{}",
@@ -461,11 +460,11 @@ fn factor_tab_bar_spans_from_sequence<'a>(
                 config.styles.scroll_front,
             ),
             TabBarElement::ScrollFrontPrefix => Span::styled(
-                String::from(&config.chars.scroll_front_prefix),
+                config.chars.scroll_front_prefix.clone(),
                 config.styles.scroll_front_prefix,
             ),
             TabBarElement::ScrollFrontPostfix => Span::styled(
-                String::from(&config.chars.scroll_front_postfix),
+                config.chars.scroll_front_postfix.clone(),
                 config.styles.scroll_front_postfix,
             ),
             TabBarElement::ScrollBack(s) => Span::styled(
@@ -476,29 +475,31 @@ fn factor_tab_bar_spans_from_sequence<'a>(
                 config.styles.scroll_back,
             ),
             TabBarElement::ScrollBackPrefix => Span::styled(
-                String::from(&config.chars.scroll_back_prefix),
+                config.chars.scroll_back_prefix.clone(),
                 config.styles.scroll_back_prefix,
             ),
             TabBarElement::ScrollBackPostfix => Span::styled(
-                String::from(&config.chars.scroll_back_postfix),
+                config.chars.scroll_back_postfix.clone(),
                 config.styles.scroll_back_postfix,
             ),
             TabBarElement::PaddingPrefix => Span::styled(
-                String::from(config.chars.padding_prefix),
+                config.chars.padding_prefix.to_string(),
                 config.styles.padding_prefix,
             ),
             TabBarElement::PaddingPostfix => Span::styled(
-                String::from(config.chars.padding_postfix),
+                config.chars.padding_postfix.to_string(),
                 config.styles.padding_postfix,
             ),
             TabBarElement::PaddingFill(n) => Span::styled(
-                String::from(config.chars.padding_fill).repeat(n),
+                config.chars.padding_fill.to_string().repeat(n),
                 config.styles.padding_fill,
             ),
         })
         .collect()
 }
 
+/// Builds the styled tab-bar spans for `tab_paths`, choosing long/short labels, scroll tags,
+/// and dividers to best fit `available_width` (see the module-level case breakdown above).
 pub fn factor_tab_bar_spans<'a>(
     available_width: usize,
     tab_paths: &[&'a Path],
