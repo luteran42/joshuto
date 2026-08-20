@@ -138,3 +138,160 @@ impl std::default::Default for AppEventListener {
         }
     }
 }
+
+#[cfg(test)]
+mod preview_after_cd_repro {
+    use std::fs;
+    use std::time::{Duration, Instant};
+
+    use clap::Parser;
+    use uuid::Uuid;
+
+    use crate::commands::change_directory::change_directory;
+    use crate::config::app::AppConfig;
+    use crate::history::{generate_entries_to_root, DirectoryHistory, JoshutoHistory};
+    use crate::run::process_event;
+    use crate::tab::JoshutoTab;
+    use crate::types::event::AppEvent;
+    use crate::types::state::AppState;
+    use crate::Args;
+
+    fn make_app_state() -> AppState {
+        let args = Args::parse_from(["joshuto"]);
+        AppState::new(AppConfig::default(), args)
+    }
+
+    fn spawn_tab(app_state: &mut AppState, cwd: &std::path::Path) {
+        let id = Uuid::new_v4();
+        let mut history = JoshutoHistory::new();
+        let tab_options = app_state
+            .config
+            .display_options
+            .default_tab_display_option
+            .clone();
+        let dirlists = generate_entries_to_root(
+            cwd,
+            &history,
+            app_state.state.ui_state_ref(),
+            &app_state.config.display_options,
+            &tab_options,
+        )
+        .unwrap();
+        history.insert_entries(dirlists);
+        let tab = JoshutoTab::new(cwd.to_path_buf(), history, tab_options).unwrap();
+        app_state.state.tab_state_mut().insert_tab(id, tab, true);
+    }
+
+    /// Mimics run_loop's event dispatch: processes non-terminal events and, after a
+    /// LoadDirectory, kicks off the cursor-entry preview exactly like the run loop does.
+    fn pump_until(
+        app_state: &mut AppState,
+        deadline: Duration,
+        mut done: impl FnMut(&AppState) -> bool,
+    ) {
+        let start = Instant::now();
+        while start.elapsed() < deadline {
+            let event = match app_state
+                .events
+                .event_rx
+                .recv_timeout(Duration::from_millis(50))
+            {
+                Ok(event) => event,
+                Err(_) => continue,
+            };
+            let is_directory_load = matches!(event, AppEvent::LoadDirectory { .. });
+            match event {
+                AppEvent::TerminalEvent(_) => {}
+                event => process_event::process_noninteractive(event, app_state),
+            }
+            if is_directory_load {
+                // run_loop: preview_default::load_previews(app_state, backend), dir case only
+                let curr_tab = app_state.state.tab_state_ref().curr_tab_ref();
+                if let Some(list) = curr_tab.curr_list_ref() {
+                    if let Some(index) = list.get_index() {
+                        let entry = &list.contents[index];
+                        if entry.metadata.is_dir() {
+                            let p = entry.file_path().to_path_buf();
+                            let metadata = entry.metadata.clone();
+                            let need_to_load = curr_tab
+                                .history_metadata_ref()
+                                .get(p.as_path())
+                                .map(|m| m.is_loading())
+                                .unwrap_or(true)
+                                && curr_tab
+                                    .history_ref()
+                                    .get(p.as_path())
+                                    .map(|e| e.need_update())
+                                    .unwrap_or(true);
+                            if need_to_load {
+                                crate::preview::preview_dir::Background::load_preview(app_state, p);
+                            }
+                        }
+                    }
+                }
+            }
+            if done(app_state) {
+                return;
+            }
+        }
+    }
+
+    #[test]
+    fn jump_to_big_dir_shows_cursor_entry_preview() {
+        let tmp =
+            std::env::temp_dir().join(format!("joshuto_preview_repro_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+
+        let zenek = tmp.join("zenek");
+        fs::create_dir_all(&zenek).unwrap();
+        for i in 0..300 {
+            fs::write(zenek.join(format!("track_{:05}.flac", i)), b"x").unwrap();
+            let album = zenek.join(format!("album_{:03}", i));
+            fs::create_dir_all(&album).unwrap();
+            fs::write(album.join("01.wav"), b"x").unwrap();
+        }
+
+        let mut app_state = make_app_state();
+        spawn_tab(&mut app_state, &tmp);
+
+        change_directory(&mut app_state, &zenek).unwrap();
+
+        // 1. the cwd listing must land on its own
+        pump_until(&mut app_state, Duration::from_secs(10), |state| {
+            state
+                .state
+                .tab_state_ref()
+                .curr_tab_ref()
+                .curr_list_ref()
+                .is_some()
+        });
+        let tab = app_state.state.tab_state_ref().curr_tab_ref();
+        let list = tab.curr_list_ref().expect("cwd listing present");
+        assert_eq!(list.contents.len(), 600, "all entries listed");
+        assert_eq!(list.get_index(), Some(0));
+        assert!(
+            tab.history_metadata_ref().get(zenek.as_path()).is_none(),
+            "cwd Loading state cleared"
+        );
+
+        // 2. the cursor entry's directory preview must be spawned and land without further input
+        pump_until(&mut app_state, Duration::from_secs(10), |state| {
+            state
+                .state
+                .tab_state_ref()
+                .curr_tab_ref()
+                .child_list_ref()
+                .is_some()
+        });
+        let child = app_state
+            .state
+            .tab_state_ref()
+            .curr_tab_ref()
+            .child_list_ref()
+            .expect("cursor entry's listing present");
+        assert_eq!(child.contents.len(), 1, "album contains one file");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+}

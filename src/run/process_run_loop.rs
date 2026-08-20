@@ -182,7 +182,16 @@ fn process_input(
             preview_default::load_previews(app_state, backend);
             app_state.flush_event();
         }
-        event => process_event::process_noninteractive(event, app_state),
+        event => {
+            // a background directory read just landed; kick off the preview of the entry
+            // under the cursor (previously this happened right after the cd command, but
+            // the read is now asynchronous)
+            let is_directory_load = matches!(event, AppEvent::LoadDirectory { .. });
+            process_event::process_noninteractive(event, app_state);
+            if is_directory_load {
+                preview_default::load_previews(app_state, backend);
+            }
+        }
     }
 }
 
