@@ -68,7 +68,14 @@ impl JoshutoMetadata {
         use std::os::unix::fs::MetadataExt;
 
         let symlink_metadata = fs::symlink_metadata(path)?;
-        let metadata = fs::metadata(path);
+        let is_symlink = symlink_metadata.file_type().is_symlink();
+        // Only symlinks need a second (follow) stat: for regular files and directories
+        // `symlink_metadata` already returned the same data.
+        let metadata = if is_symlink {
+            fs::metadata(path)
+        } else {
+            Ok(symlink_metadata.clone())
+        };
         let (len, modified, accessed) = match metadata.as_ref() {
             Ok(m) => (m.len(), m.modified()?, m.accessed()?),
             Err(_) => (
@@ -91,7 +98,7 @@ impl JoshutoMetadata {
             _ => (FileType::File, Mode::empty()),
         };
 
-        let link_type = if symlink_metadata.file_type().is_symlink() {
+        let link_type = if is_symlink {
             let mut link = "".to_string();
 
             if let Ok(path) = fs::read_link(path) {
@@ -100,7 +107,7 @@ impl JoshutoMetadata {
                 }
             }
 
-            let exists = path.exists();
+            let exists = metadata.is_ok();
             LinkType::Symlink {
                 target: link,
                 valid: exists,

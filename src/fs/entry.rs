@@ -100,7 +100,7 @@ impl JoshutoDirEntry {
         self.visual_mode_selected
     }
 
-pub fn is_marked_cut(&self) -> bool {
+    pub fn is_marked_cut(&self) -> bool {
         self.marked_cut
     }
     pub fn is_marked_copy(&self) -> bool {

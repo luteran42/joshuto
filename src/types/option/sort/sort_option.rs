@@ -27,8 +27,8 @@ impl SortOption {
     /// priority order, applying `reverse` to each comparison.
     pub fn compare(&self, f1: &JoshutoDirEntry, f2: &JoshutoDirEntry) -> cmp::Ordering {
         if self.directories_first {
-            let f1_isdir = f1.file_path().is_dir();
-            let f2_isdir = f2.file_path().is_dir();
+            let f1_isdir = f1.metadata.is_dir();
+            let f2_isdir = f2.metadata.is_dir();
 
             if f1_isdir && !f2_isdir {
                 return cmp::Ordering::Less;

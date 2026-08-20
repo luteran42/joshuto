@@ -80,7 +80,7 @@ impl TabState {
         tab
     }
 
-/// Returns an iterator over all tabs, in arbitrary (hash map) order.
+    /// Returns an iterator over all tabs, in arbitrary (hash map) order.
     pub fn iter(&self) -> Iter<'_, Uuid, JoshutoTab> {
         self.tabs.iter()
     }

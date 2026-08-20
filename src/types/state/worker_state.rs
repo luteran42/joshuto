@@ -57,7 +57,7 @@ impl WorkerState {
         self.task_queue.is_empty()
     }
 
-/// Returns an iterator over the queued (not-yet-started) tasks.
+    /// Returns an iterator over the queued (not-yet-started) tasks.
     pub fn iter(&self) -> Iter<'_, IoTask> {
         self.task_queue.iter()
     }

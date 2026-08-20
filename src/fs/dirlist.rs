@@ -189,7 +189,7 @@ impl JoshutoDirList {
         self.update_visual_mode_selection();
     }
 
-/// Returns an iterator over the entries in this directory.
+    /// Returns an iterator over the entries in this directory.
     pub fn iter(&self) -> Iter<'_, JoshutoDirEntry> {
         self.contents.iter()
     }
@@ -240,7 +240,7 @@ impl JoshutoDirList {
         self.contents.iter().filter(|e| e.is_selected()).count()
     }
 
-pub fn marked_cut_count(&self) -> usize {
+    pub fn marked_cut_count(&self) -> usize {
         self.contents.iter().filter(|e| e.is_marked_cut()).count()
     }
     pub fn marked_copy_count(&self) -> usize {
