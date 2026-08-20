@@ -1,7 +1,10 @@
 use std::path;
 use std::thread;
 
+use uuid::Uuid;
+
 use crate::fs::JoshutoDirList;
+use crate::history::read_directory;
 use crate::types::event::AppEvent;
 use crate::types::state::AppState;
 
@@ -51,6 +54,49 @@ impl Background {
             let path_clone = dir_path.clone();
             let dir_res = JoshutoDirList::from_path(dir_path, &options, &tab_options);
             let res = AppEvent::PreviewDir {
+                id: tab_id,
+                path: path_clone,
+                res: Box::new(dir_res),
+            };
+            let _ = event_tx.send(res);
+        })
+    }
+
+    /// Spawns a background thread that reads the raw (unsorted) contents of `dir_path` and
+    /// posts an [`AppEvent::LoadDirectory`] with the result when done. The listing is only
+    /// marked as loading if there is no cached listing to keep showing in the meantime.
+    pub fn load_directory(
+        app_state: &mut AppState,
+        tab_id: Uuid,
+        dir_path: path::PathBuf,
+    ) -> thread::JoinHandle<()> {
+        let event_tx = app_state.events.event_tx.clone();
+        let options = app_state.config.display_options.clone();
+        let tab_options = app_state
+            .state
+            .tab_state_ref()
+            .curr_tab_ref()
+            .option_ref()
+            .clone();
+
+        let cached = app_state
+            .state
+            .tab_state_ref()
+            .tab_ref(&tab_id)
+            .map(|t| t.history_ref().contains_key(dir_path.as_path()))
+            .unwrap_or(false);
+        if !cached {
+            if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&tab_id) {
+                tab.history_metadata_mut()
+                    .insert(dir_path.clone(), PreviewDirState::Loading);
+            }
+        }
+
+        thread::spawn(move || {
+            let path_clone = dir_path.clone();
+            let filter_func = options.filter_func();
+            let dir_res = read_directory(&dir_path, filter_func, &options, &tab_options);
+            let res = AppEvent::LoadDirectory {
                 id: tab_id,
                 path: path_clone,
                 res: Box::new(dir_res),

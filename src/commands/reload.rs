@@ -1,17 +1,15 @@
 use crate::error::AppResult;
 use crate::history::{create_dirlist_with_history, DirectoryHistory};
+use crate::preview::preview_dir::Background;
 use crate::types::state::AppState;
 
 use uuid::Uuid;
 
 /// Re-reads only the parent/current/child listings of tab `id` that are marked stale or have
-/// changed on disk.
+/// changed on disk, on background threads so the UI stays responsive.
 pub fn soft_reload(app_state: &mut AppState, id: &Uuid) -> std::io::Result<()> {
-    let mut dirlists = Vec::with_capacity(3);
+    let mut paths = Vec::with_capacity(3);
     if let Some(curr_tab) = app_state.state.tab_state_ref().tab_ref(id) {
-        let display_options = &app_state.config.display_options;
-        let tab_options = app_state.state.tab_state_ref().curr_tab_ref().option_ref();
-        let history = curr_tab.history_ref();
         for curr_list in [
             curr_tab.parent_list_ref(),
             curr_tab.curr_list_ref(),
@@ -21,24 +19,13 @@ pub fn soft_reload(app_state: &mut AppState, id: &Uuid) -> std::io::Result<()> {
         .flatten()
         {
             if curr_list.need_update() {
-                let new_dirlist = create_dirlist_with_history(
-                    history,
-                    curr_list.file_path(),
-                    display_options,
-                    tab_options,
-                )?;
-                dirlists.push(new_dirlist);
+                paths.push(curr_list.file_path().to_path_buf());
             }
         }
     }
 
-    if let Some(history) = app_state
-        .state
-        .tab_state_mut()
-        .tab_mut(id)
-        .map(|t| t.history_mut())
-    {
-        history.insert_entries(dirlists);
+    for path in paths {
+        Background::load_directory(app_state, *id, path);
     }
     Ok(())
 }

@@ -29,6 +29,8 @@ pub struct JoshutoTab {
     pub history_metadata: HistoryMetadata,
     pub options: TabDisplayOption,
     pub navigation_history: NavigationHistory,
+    // file name the cursor should land on once the current directory's listing has loaded
+    pub pending_cursor: Option<String>,
 }
 
 impl JoshutoTab {
@@ -46,6 +48,7 @@ impl JoshutoTab {
             history_metadata: HashMap::new(),
             navigation_history,
             options: tab_options,
+            pending_cursor: None,
         };
 
         Ok(new_tab)

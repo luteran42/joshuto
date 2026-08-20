@@ -1,6 +1,5 @@
-use super::change_directory::change_directory;
+use super::change_directory::change_directory_with_cursor;
 use super::sub_process::current_files;
-use crate::commands::cursor_move;
 use crate::error::{AppError, AppErrorKind, AppResult};
 use crate::types::state::AppState;
 use crate::ui::AppBackend;
@@ -77,29 +76,17 @@ pub fn custom_search(
             .trim_end();
 
         let path = std::path::Path::new(returned_text);
-        change_directory(
+        change_directory_with_cursor(
             app_state,
             path.parent().ok_or(AppError::new(
                 AppErrorKind::Parse,
                 "Could not get parent directory".into(),
             ))?,
+            path.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
         )?;
-
-        if let Some(current_dir_items) = app_state
-            .state
-            .tab_state_ref()
-            .curr_tab_ref()
-            .curr_list_ref()
-        {
-            let position = current_dir_items
-                .iter()
-                .enumerate()
-                .find(|(_, x)| x.file_name() == path.file_name().unwrap_or_default())
-                .map(|(x, _)| x)
-                .unwrap_or_default();
-
-            cursor_move::cursor_move(app_state, position);
-        }
 
         Ok(())
     } else {

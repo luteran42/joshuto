@@ -51,7 +51,21 @@ pub fn create_dirlist_with_history(
     tab_options: &TabDisplayOption,
 ) -> io::Result<JoshutoDirList> {
     let filter_func = options.filter_func();
-    let mut contents = read_directory(path, filter_func, options, tab_options)?;
+    let contents = read_directory(path, filter_func, options, tab_options)?;
+    build_dirlist_from_contents(contents, path, history, options, tab_options)
+}
+
+/// Turns already-read (and unsorted) `contents` into a complete `JoshutoDirList`,
+/// reusing cached directory sizes and preserving selection state and cursor position from
+/// `history` where the underlying entries still match. Does no disk I/O.
+pub fn build_dirlist_from_contents(
+    contents: Vec<JoshutoDirEntry>,
+    path: &Path,
+    history: &JoshutoHistory,
+    options: &DisplayOption,
+    tab_options: &TabDisplayOption,
+) -> io::Result<JoshutoDirList> {
+    let mut contents = contents;
 
     // re-use directory size information on reload
     for entry in contents.iter_mut() {
@@ -184,6 +198,29 @@ where
     Ok(results)
 }
 
+/// Returns a fresh listing for the ancestor `path`, reusing the cached listing without any disk
+/// I/O if it hasn't changed, and points its cursor at `child` if given.
+pub fn reuse_or_read_ancestor(
+    path: &Path,
+    history: &JoshutoHistory,
+    ui_state: &UiState,
+    display_options: &DisplayOption,
+    tab_options: &TabDisplayOption,
+    child: Option<&Path>,
+) -> io::Result<JoshutoDirList> {
+    let mut new_dirlist = match history.get(path) {
+        Some(list) if !list.need_update() => list.clone(),
+        Some(_) => create_dirlist_with_history(history, path, display_options, tab_options)?,
+        None => JoshutoDirList::from_path(path.to_path_buf(), display_options, tab_options)?,
+    };
+    if let Some(ancestor) = child {
+        if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
+            new_dirlist.set_index(Some(i), ui_state, display_options);
+        }
+    }
+    Ok(new_dirlist)
+}
+
 /// Builds a directory listing for `path` and each of its ancestors up to the filesystem root,
 /// with each listing's cursor set to the child it descended through, reusing `history` where
 /// possible.
@@ -198,28 +235,14 @@ pub fn generate_entries_to_root(
 
     let mut prev: Option<&Path> = None;
     for curr in path.ancestors() {
-        if history.contains_key(curr) {
-            let mut new_dirlist =
-                create_dirlist_with_history(history, curr, display_options, tab_options)?;
-            if let Some(ancestor) = prev.as_ref() {
-                if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
-                    new_dirlist.set_index(Some(i), ui_state, display_options);
-                }
-            }
-            dirlists.push(new_dirlist);
-        } else {
-            let mut new_dirlist = JoshutoDirList::from_path(
-                curr.to_path_buf().clone(),
-                display_options,
-                tab_options,
-            )?;
-            if let Some(ancestor) = prev.as_ref() {
-                if let Some(i) = get_index_of_value(&new_dirlist.contents, ancestor) {
-                    new_dirlist.set_index(Some(i), ui_state, display_options);
-                }
-            }
-            dirlists.push(new_dirlist);
-        }
+        dirlists.push(reuse_or_read_ancestor(
+            curr,
+            history,
+            ui_state,
+            display_options,
+            tab_options,
+            prev,
+        )?);
         prev = Some(curr);
     }
     Ok(dirlists)

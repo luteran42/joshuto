@@ -11,7 +11,8 @@ use uuid::Uuid;
 use crate::commands::tab_ops;
 use crate::commands::{cursor_move, parent_cursor_move, reload};
 use crate::error::AppResult;
-use crate::fs::JoshutoDirList;
+use crate::fs::{JoshutoDirEntry, JoshutoDirList};
+use crate::history::{build_dirlist_from_contents, reuse_or_read_ancestor, DirectoryHistory};
 use crate::preview::preview_dir::PreviewDirState;
 use crate::preview::preview_file::PreviewFileState;
 use crate::traits::app_execute::AppExecute;
@@ -79,6 +80,9 @@ pub fn process_noninteractive(event: AppEvent, app_state: &mut AppState) {
         AppEvent::IoTaskResult(res) => process_finished_io_task(app_state, res),
         AppEvent::PreviewDir { id, path, res } => process_dir_preview(app_state, id, path, *res),
         AppEvent::PreviewFile { path, res } => process_file_preview(app_state, path, res),
+        AppEvent::LoadDirectory { id, path, res } => {
+            process_directory_load(app_state, id, path, *res)
+        }
         AppEvent::Signal(signal::SIGWINCH) => {}
         AppEvent::Filesystem(e) => process_filesystem_event(e, app_state),
         AppEvent::ChildProcessComplete(child_id) => {
@@ -188,6 +192,93 @@ pub fn process_dir_preview(
             }
             break;
         }
+    }
+}
+
+/// Applies a completed background directory read: rebuilds the listing for `path` (preserving
+/// selection state from the tab's history) and, if `path` is still the tab's current directory,
+/// ensures the ancestor listings are up to date as well. Results for paths the tab has already
+/// navigated away from are inserted as-is, so rapid `cd`s never show a stale current listing.
+pub fn process_directory_load(
+    app_state: &mut AppState,
+    id: Uuid,
+    path: path::PathBuf,
+    res: io::Result<Vec<JoshutoDirEntry>>,
+) {
+    let ui_state = app_state.state.ui_state_ref().clone();
+    let display_options = app_state.config.display_options.clone();
+    let mut error_messages = Vec::new();
+    for (tab_id, tab) in app_state.state.tab_state_mut().iter_mut() {
+        if *tab_id != id {
+            continue;
+        }
+        // remove from loading state
+        tab.history_metadata_mut().remove(&path);
+        match res {
+            Ok(contents) => {
+                let tab_options = tab.option_ref().clone();
+                match build_dirlist_from_contents(
+                    contents,
+                    &path,
+                    tab.history_ref(),
+                    &display_options,
+                    &tab_options,
+                ) {
+                    Ok(dirlist) => {
+                        if tab.get_cwd() == path.as_path() {
+                            let mut dirlists = Vec::with_capacity(8);
+                            dirlists.push(dirlist);
+                            let mut prev: Option<&path::Path> = None;
+                            for ancestor in path.ancestors().skip(1) {
+                                match reuse_or_read_ancestor(
+                                    ancestor,
+                                    tab.history_ref(),
+                                    &ui_state,
+                                    &display_options,
+                                    &tab_options,
+                                    prev,
+                                ) {
+                                    Ok(list) => dirlists.push(list),
+                                    Err(e) => error_messages.push(e.to_string()),
+                                }
+                                prev = Some(ancestor);
+                            }
+                            tab.history_mut().insert_entries(dirlists);
+                            if let Some(name) = tab.pending_cursor.take() {
+                                if let Some(list) = tab.curr_list_mut() {
+                                    if let Some(i) = list.get_index_from_name(&name) {
+                                        list.set_index(Some(i), &ui_state, &display_options);
+                                    }
+                                }
+                            }
+                        } else {
+                            tab.history_mut().insert(path, dirlist);
+                        }
+                    }
+                    Err(e) => error_messages.push(e.to_string()),
+                }
+            }
+            Err(e) => {
+                // a failed cd into an uncached directory shows the error in the pane;
+                // otherwise keep the old listing and report through the message queue
+                let is_cwd = tab.get_cwd() == path.as_path();
+                let cached = tab.history_ref().contains_key(path.as_path());
+                if is_cwd && !cached {
+                    tab.history_metadata_mut().insert(
+                        path,
+                        PreviewDirState::Error {
+                            message: e.to_string(),
+                        },
+                    );
+                } else {
+                    error_messages.push(e.to_string());
+                }
+            }
+        }
+        break;
+    }
+    for message in error_messages {
+        app_state.state.message_queue_mut().push_error(message);
     }
 }
 

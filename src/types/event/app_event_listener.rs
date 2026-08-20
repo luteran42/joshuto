@@ -10,7 +10,7 @@ use ratatui_image::protocol::Protocol;
 use uuid::Uuid;
 
 use crate::error::AppResult;
-use crate::fs::JoshutoDirList;
+use crate::fs::{JoshutoDirEntry, JoshutoDirList};
 use crate::preview::preview_file::FilePreview;
 use crate::types::event::input_listener::TerminalInputListener;
 use crate::types::event::signal_listener::SignalListener;
@@ -63,6 +63,12 @@ pub enum AppEvent {
     PreviewFile {
         path: path::PathBuf,
         res: io::Result<PreviewData>,
+    },
+    // background directory-listing thread events
+    LoadDirectory {
+        id: Uuid,
+        path: path::PathBuf,
+        res: Box<io::Result<Vec<JoshutoDirEntry>>>,
     },
     // terminal size change events
     Signal(i32),
