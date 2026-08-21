@@ -283,15 +283,20 @@ This branch (`lali-joshuto-new`) builds on upstream joshuto with a focus on
 - **Background directory loading:** directory listings are read on worker
   threads (`LoadDirectory` events) so the UI stays responsive; unchanged
   ancestor listings are reused from the cache instead of being re-read.
-- **Fewer stat syscalls:** sorting uses already-cached entry metadata, and the
-  redundant follow-`stat` for non-symlinks was removed (directory loads are
-  noticeably faster on large directories).
+- **Lazy entry metadata:** directory listings and previews no longer `stat` every
+  entry up front. `file_type` and `link_type` are derived cheaply from `readdir`'s
+  `d_type` plus a `readlink` for symlinks (no `stat`), while `len`,
+  `modified`, `accessed`, `mode`, `uid` and `gid` are fetched lazily on first
+  access and cached. The only `stat`s happen for the cursor entry's footer and
+  the visible detailed rows, so large directories load much faster.
 - **Bounded worker pool + cancellation tokens** for directory and preview tasks,
   so rapid cursor movement cancels in-flight work instead of letting stale
   results pile up. Generation tracking prevents a late load from overwriting a
   newer listing.
-- **Faster previews:** The script-preview channel is drained
-  so only the latest entry is rendered.
+- **Accurate full previews:** because a full read is now cheap, the preview shows
+  the complete listing with the correct entry count (no preview cap and no
+  background-completion hack). The script-preview channel is drained so only the
+  latest entry is rendered.
 - A small bounded-concurrency `semaphore` utility was added to cap parallel work.
 
 ### Other
