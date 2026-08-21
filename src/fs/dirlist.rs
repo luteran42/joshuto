@@ -2,7 +2,7 @@ use std::slice::{Iter, IterMut};
 use std::{io, path};
 
 use crate::fs::{entry::JoshutoDirEntry, metadata::JoshutoMetadata};
-use crate::history::{read_directory, read_directory_with_limit};
+use crate::history::read_directory;
 use crate::tab::TabDisplayOption;
 use crate::types::option::display::DisplayOption;
 use crate::types::state::UiState;
@@ -53,38 +53,6 @@ impl JoshutoDirList {
         let filter_func = display_options.filter_func();
         let mut contents =
             read_directory(path.as_path(), filter_func, display_options, tab_options)?;
-
-        contents.sort_by(|f1, f2| tab_options.sort_options.compare(f1, f2));
-
-        let index = if contents.is_empty() { None } else { Some(0) };
-        let metadata = JoshutoMetadata::from(&path)?;
-
-        Ok(Self {
-            path,
-            contents,
-            metadata,
-            need_update: false,
-            index,
-            viewport_index: index.unwrap_or_default(),
-            visual_mode_anchor_index: None,
-        })
-    }
-
-    /// Reads and sorts up to `limit` entries of `path` from disk for directory previewing.
-    pub fn from_path_preview(
-        path: path::PathBuf,
-        display_options: &DisplayOption,
-        tab_options: &TabDisplayOption,
-        limit: usize,
-    ) -> io::Result<Self> {
-        let filter_func = display_options.filter_func();
-        let mut contents = read_directory_with_limit(
-            path.as_path(),
-            filter_func,
-            display_options,
-            tab_options,
-            Some(limit),
-        )?;
 
         contents.sort_by(|f1, f2| tab_options.sort_options.compare(f1, f2));
 

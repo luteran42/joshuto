@@ -87,13 +87,7 @@ impl DirTask {
                 if cancel_token.load(Ordering::Relaxed) {
                     return;
                 }
-                const MAX_PREVIEW_DIR_ENTRIES: usize = 200;
-                let dir_res = JoshutoDirList::from_path_preview(
-                    path.clone(),
-                    &options,
-                    &tab_options,
-                    MAX_PREVIEW_DIR_ENTRIES,
-                );
+                let dir_res = JoshutoDirList::from_path(path.clone(), &options, &tab_options);
                 if cancel_token.load(Ordering::Relaxed) {
                     return;
                 }
