@@ -18,11 +18,11 @@ pub fn cd(path: &Path, app_state: &mut AppState, history_update: bool) -> std::i
         .set_cwd(path, history_update);
     // any pending cursor target is invalidated by a cwd change; callers that want to land on
     // an entry set it again explicitly after cd()
-    app_state
-        .state
-        .tab_state_mut()
-        .curr_tab_mut()
-        .pending_cursor = None;
+    let curr_tab = app_state.state.tab_state_mut().curr_tab_mut();
+    curr_tab.pending_cursor = None;
+    if let Some(prev_token) = curr_tab.preview_cancel_token.take() {
+        prev_token.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
     if app_state.config.zoxide_update {
         debug_assert!(path.is_absolute());
         zoxide::zoxide_add(path.to_str().expect("cannot convert path to string"))?;

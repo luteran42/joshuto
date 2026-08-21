@@ -33,6 +33,10 @@ pub struct JoshutoTab {
     pub pending_cursor: Option<String>,
     // sequence number to invalidate stale background directory loads
     pub load_generation: u64,
+    // cancellation token for in-flight directory load on this tab
+    pub dir_cancel_token: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    // cancellation token for in-flight directory preview on this tab
+    pub preview_cancel_token: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 
 impl JoshutoTab {
@@ -52,6 +56,8 @@ impl JoshutoTab {
             options: tab_options,
             pending_cursor: None,
             load_generation: 0,
+            dir_cancel_token: None,
+            preview_cancel_token: None,
         };
 
         Ok(new_tab)

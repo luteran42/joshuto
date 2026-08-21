@@ -1,11 +1,17 @@
-use std::path;
+use std::path::{self, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Sender};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
+use lazy_static::lazy_static;
 use uuid::Uuid;
 
 use crate::fs::JoshutoDirList;
 use crate::history::read_directory;
+use crate::tab::TabDisplayOption;
 use crate::types::event::AppEvent;
+use crate::types::option::display::DisplayOption;
 use crate::types::state::AppState;
 
 /// Status of a directory preview being generated on a background thread.
@@ -22,54 +28,140 @@ impl PreviewDirState {
     }
 }
 
-/// Namespace for spawning background directory-preview loads.
+enum DirTask {
+    LoadDirectory {
+        tab_id: Uuid,
+        generation: u64,
+        path: PathBuf,
+        options: DisplayOption,
+        tab_options: TabDisplayOption,
+        event_tx: Sender<AppEvent>,
+        cancel_token: Arc<AtomicBool>,
+    },
+    LoadPreview {
+        tab_id: Uuid,
+        path: PathBuf,
+        options: DisplayOption,
+        tab_options: TabDisplayOption,
+        event_tx: Sender<AppEvent>,
+        cancel_token: Arc<AtomicBool>,
+    },
+}
+
+impl DirTask {
+    fn run(self) {
+        match self {
+            DirTask::LoadDirectory {
+                tab_id,
+                generation,
+                path,
+                options,
+                tab_options,
+                event_tx,
+                cancel_token,
+            } => {
+                if cancel_token.load(Ordering::Relaxed) {
+                    return;
+                }
+                let filter_func = options.filter_func();
+                let dir_res = read_directory(&path, filter_func, &options, &tab_options);
+                if cancel_token.load(Ordering::Relaxed) {
+                    return;
+                }
+                let res = AppEvent::LoadDirectory {
+                    id: tab_id,
+                    generation,
+                    path,
+                    res: Box::new(dir_res),
+                };
+                let _ = event_tx.send(res);
+            }
+            DirTask::LoadPreview {
+                tab_id,
+                path,
+                options,
+                tab_options,
+                event_tx,
+                cancel_token,
+            } => {
+                if cancel_token.load(Ordering::Relaxed) {
+                    return;
+                }
+                let dir_res = JoshutoDirList::from_path(path.clone(), &options, &tab_options);
+                if cancel_token.load(Ordering::Relaxed) {
+                    return;
+                }
+                let res = AppEvent::PreviewDir {
+                    id: tab_id,
+                    path,
+                    res: Box::new(dir_res),
+                };
+                let _ = event_tx.send(res);
+            }
+        }
+    }
+}
+
+lazy_static! {
+    static ref DIR_WORKER_TX: Sender<DirTask> = {
+        let (tx, rx) = mpsc::channel::<DirTask>();
+        let rx = Arc::new(Mutex::new(rx));
+        let num_workers = num_cpus::get().clamp(2, 4);
+        for _ in 0..num_workers {
+            let rx_clone = Arc::clone(&rx);
+            thread::spawn(move || {
+                while let Ok(task) = {
+                    let lock = rx_clone.lock().unwrap();
+                    lock.recv()
+                } {
+                    task.run();
+                }
+            });
+        }
+        tx
+    };
+}
+
+/// Namespace for queuing background directory-preview and directory-listing loads.
 pub struct Background {}
 
 impl Background {
-    /// Spawns a background thread that reads `dir_path` and posts an [`AppEvent::PreviewDir`]
-    /// with the result when done.
-    pub fn load_preview(
-        app_state: &mut AppState,
-        dir_path: path::PathBuf,
-    ) -> thread::JoinHandle<()> {
+    /// Queues a directory preview load on the worker pool for `dir_path` and posts an
+    /// [`AppEvent::PreviewDir`] when done, cancelling any prior in-flight preview for this tab.
+    pub fn load_preview(app_state: &mut AppState, dir_path: path::PathBuf) {
         let event_tx = app_state.events.event_tx.clone();
         let options = app_state.config.display_options.clone();
+        let tab_id = app_state.state.tab_state_ref().curr_tab_id();
         let tab_options = app_state
             .state
             .tab_state_ref()
-            .curr_tab_ref()
-            .option_ref()
-            .clone();
-        let tab_id = app_state.state.tab_state_ref().curr_tab_id();
+            .tab_ref(&tab_id)
+            .map(|t| t.option_ref().clone())
+            .unwrap_or_default();
 
-        // add to loading state
-        app_state
-            .state
-            .tab_state_mut()
-            .curr_tab_mut()
-            .history_metadata_mut()
-            .insert(dir_path.clone(), PreviewDirState::Loading);
+        let cancel_token = Arc::new(AtomicBool::new(false));
+        if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&tab_id) {
+            // Cancel previous in-flight preview request for this tab
+            if let Some(prev_token) = tab.preview_cancel_token.replace(cancel_token.clone()) {
+                prev_token.store(true, Ordering::Relaxed);
+            }
+            tab.history_metadata_mut()
+                .insert(dir_path.clone(), PreviewDirState::Loading);
+        }
 
-        thread::spawn(move || {
-            let path_clone = dir_path.clone();
-            let dir_res = JoshutoDirList::from_path(dir_path, &options, &tab_options);
-            let res = AppEvent::PreviewDir {
-                id: tab_id,
-                path: path_clone,
-                res: Box::new(dir_res),
-            };
-            let _ = event_tx.send(res);
-        })
+        let _ = DIR_WORKER_TX.send(DirTask::LoadPreview {
+            tab_id,
+            path: dir_path,
+            options,
+            tab_options,
+            event_tx,
+            cancel_token,
+        });
     }
 
-    /// Spawns a background thread that reads the raw (unsorted) contents of `dir_path` and
-    /// posts an [`AppEvent::LoadDirectory`] with the result when done. The listing is only
-    /// marked as loading if there is no cached listing to keep showing in the meantime.
-    pub fn load_directory(
-        app_state: &mut AppState,
-        tab_id: Uuid,
-        dir_path: path::PathBuf,
-    ) -> thread::JoinHandle<()> {
+    /// Queues a raw directory listing load on the worker pool for `dir_path` and posts an
+    /// [`AppEvent::LoadDirectory`] when done, cancelling any prior in-flight load for this tab.
+    pub fn load_directory(app_state: &mut AppState, tab_id: Uuid, dir_path: path::PathBuf) {
         let event_tx = app_state.events.event_tx.clone();
         let options = app_state.config.display_options.clone();
         let tab_options = app_state
@@ -85,7 +177,13 @@ impl Background {
             .tab_ref(&tab_id)
             .map(|t| t.history_ref().contains_key(dir_path.as_path()))
             .unwrap_or(false);
+
+        let cancel_token = Arc::new(AtomicBool::new(false));
         let generation = if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&tab_id) {
+            // Cancel previous in-flight directory load for this tab
+            if let Some(prev_token) = tab.dir_cancel_token.replace(cancel_token.clone()) {
+                prev_token.store(true, Ordering::Relaxed);
+            }
             if !cached {
                 tab.history_metadata_mut()
                     .insert(dir_path.clone(), PreviewDirState::Loading);
@@ -96,17 +194,14 @@ impl Background {
             0
         };
 
-        thread::spawn(move || {
-            let path_clone = dir_path.clone();
-            let filter_func = options.filter_func();
-            let dir_res = read_directory(&dir_path, filter_func, &options, &tab_options);
-            let res = AppEvent::LoadDirectory {
-                id: tab_id,
-                generation,
-                path: path_clone,
-                res: Box::new(dir_res),
-            };
-            let _ = event_tx.send(res);
-        })
+        let _ = DIR_WORKER_TX.send(DirTask::LoadDirectory {
+            tab_id,
+            generation,
+            path: dir_path,
+            options,
+            tab_options,
+            event_tx,
+            cancel_token,
+        });
     }
 }
