@@ -161,7 +161,7 @@ fn file_style(config: &AppConfig, entry: &JoshutoDirEntry) -> Style {
         .bg(THEME_T.regular.bg)
         .add_modifier(THEME_T.regular.modifier);
     let metadata = &entry.metadata;
-    if unix::is_executable(metadata.mode) {
+    if unix::is_executable(metadata.mode()) {
         Style::default()
             .fg(THEME_T.executable.fg)
             .bg(THEME_T.executable.bg)

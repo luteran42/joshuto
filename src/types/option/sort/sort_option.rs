@@ -108,7 +108,7 @@ impl From<SortOptionRaw> for SortOption {
 }
 
 fn mtime_sort(file1: &JoshutoDirEntry, file2: &JoshutoDirEntry) -> cmp::Ordering {
-    file1.metadata.modified.cmp(&file2.metadata.modified)
+    file1.metadata.modified().cmp(&file2.metadata.modified())
 }
 
 fn size_sort(file1: &JoshutoDirEntry, file2: &JoshutoDirEntry) -> cmp::Ordering {

@@ -34,7 +34,8 @@ pub fn set_mode(app_state: &mut AppState, backend: &mut AppBackend) -> AppResult
 
     let user_input = match entry {
         Some(entry) => {
-            let mode_arr = unix::mode_to_char_array(entry.metadata.mode, entry.metadata.file_type);
+            let mode_arr =
+                unix::mode_to_char_array(entry.metadata.mode(), entry.metadata.file_type);
             let mut listener = DummyListener {};
 
             let mode_str: String = mode_arr[1..].iter().collect();
@@ -69,7 +70,7 @@ pub fn set_mode(app_state: &mut AppState, backend: &mut AppBackend) -> AppResult
                             let error_msg = format!("Failed to set file permissions: {err}");
                             AppError::new(AppErrorKind::Io, error_msg)
                         })?;
-                        entry.metadata.mode = mode;
+                        entry.metadata.set_mode(mode);
                     }
                 } else if let Some(entry) = curr_list.curr_entry_mut() {
                     fchmodat(
@@ -82,7 +83,7 @@ pub fn set_mode(app_state: &mut AppState, backend: &mut AppBackend) -> AppResult
                         let error_msg = format!("Failed to set file permissions: {err}");
                         AppError::new(AppErrorKind::Io, error_msg)
                     })?;
-                    entry.metadata.mode = mode;
+                    entry.metadata.set_mode(mode);
                     cursor_move::down(app_state, 1)?;
                 }
             }
