@@ -1,4 +1,3 @@
-use std::io;
 use std::path::{self, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
@@ -8,8 +7,8 @@ use std::thread;
 use lazy_static::lazy_static;
 use uuid::Uuid;
 
-use crate::fs::{JoshutoDirEntry, JoshutoDirList, JoshutoMetadata};
-use crate::history::{read_directory, read_directory_with_limit};
+use crate::fs::JoshutoDirList;
+use crate::history::read_directory;
 use crate::tab::TabDisplayOption;
 use crate::types::event::AppEvent;
 use crate::types::option::display::DisplayOption;
@@ -85,106 +84,22 @@ impl DirTask {
                 event_tx,
                 cancel_token,
             } => {
-                const MAX_PREVIEW_DIR_ENTRIES: usize = 200;
-
                 if cancel_token.load(Ordering::Relaxed) {
                     return;
                 }
-                let filter_func = options.filter_func();
-
-                // Fast first paint: read only the first `MAX_PREVIEW_DIR_ENTRIES` entries so the
-                // preview appears instantly even for huge directories.
-                let partial = read_directory_with_limit(
-                    &path,
-                    filter_func,
-                    &options,
-                    &tab_options,
-                    Some(MAX_PREVIEW_DIR_ENTRIES),
-                );
-
+                let dir_res = JoshutoDirList::from_path(path.clone(), &options, &tab_options);
                 if cancel_token.load(Ordering::Relaxed) {
                     return;
                 }
-
-                match partial {
-                    Ok(entries) if entries.len() < MAX_PREVIEW_DIR_ENTRIES => {
-                        // The whole directory fit within the cap: it's already complete.
-                        match build_preview_dirlist(path.clone(), entries, &tab_options) {
-                            Ok(dirlist) => send_preview(event_tx, tab_id, dirlist),
-                            Err(e) => send_preview_err(event_tx, tab_id, path, e),
-                        }
-                    }
-                    Ok(entries) => {
-                        // Show the partial listing right away, then finish the full read in the
-                        // background and replace it with the complete, fully-counted listing.
-                        match build_preview_dirlist(path.clone(), entries, &tab_options) {
-                            Ok(dirlist) => send_preview(event_tx.clone(), tab_id, dirlist),
-                            Err(e) => send_preview_err(event_tx.clone(), tab_id, path.clone(), e),
-                        }
-
-                        if cancel_token.load(Ordering::Relaxed) {
-                            return;
-                        }
-                        let full = read_directory(&path, filter_func, &options, &tab_options);
-                        if cancel_token.load(Ordering::Relaxed) {
-                            return;
-                        }
-                        match full {
-                            Ok(entries) => {
-                                match build_preview_dirlist(path.clone(), entries, &tab_options) {
-                                    Ok(dirlist) => send_preview(event_tx, tab_id, dirlist),
-                                    Err(e) => send_preview_err(event_tx, tab_id, path, e),
-                                }
-                            }
-                            Err(e) => send_preview_err(event_tx, tab_id, path, e),
-                        }
-                    }
-                    Err(e) => {
-                        send_preview_err(event_tx, tab_id, path, e);
-                    }
-                }
+                let res = AppEvent::PreviewDir {
+                    id: tab_id,
+                    path,
+                    res: Box::new(dir_res),
+                };
+                let _ = event_tx.send(res);
             }
         }
     }
-}
-
-/// Builds a `JoshutoDirList` from already-read `contents`, sorted per the tab options.
-fn build_preview_dirlist(
-    path: PathBuf,
-    mut contents: Vec<JoshutoDirEntry>,
-    tab_options: &TabDisplayOption,
-) -> io::Result<JoshutoDirList> {
-    contents.sort_by(|f1, f2| tab_options.sort_options.compare(f1, f2));
-    let index = if contents.is_empty() { None } else { Some(0) };
-    let metadata = JoshutoMetadata::from(&path)?;
-    Ok(JoshutoDirList::new(
-        path,
-        contents,
-        index,
-        index.unwrap_or_default(),
-        None,
-        metadata,
-    ))
-}
-
-/// Posts a completed directory preview to the event channel.
-fn send_preview(event_tx: Sender<AppEvent>, id: Uuid, dirlist: JoshutoDirList) {
-    let res = AppEvent::PreviewDir {
-        id,
-        path: dirlist.file_path().to_path_buf(),
-        res: Box::new(Ok(dirlist)),
-    };
-    let _ = event_tx.send(res);
-}
-
-/// Posts a failed directory preview to the event channel.
-fn send_preview_err(event_tx: Sender<AppEvent>, id: Uuid, path: PathBuf, e: io::Error) {
-    let res = AppEvent::PreviewDir {
-        id,
-        path,
-        res: Box::new(Err(e)),
-    };
-    let _ = event_tx.send(res);
 }
 
 lazy_static! {
