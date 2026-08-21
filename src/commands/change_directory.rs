@@ -20,9 +20,7 @@ pub fn cd(path: &Path, app_state: &mut AppState, history_update: bool) -> std::i
     // an entry set it again explicitly after cd()
     let curr_tab = app_state.state.tab_state_mut().curr_tab_mut();
     curr_tab.pending_cursor = None;
-    if let Some(prev_token) = curr_tab.preview_cancel_token.take() {
-        prev_token.store(true, std::sync::atomic::Ordering::Relaxed);
-    }
+    curr_tab.cancel_preview_load();
     if app_state.config.zoxide_update {
         debug_assert!(path.is_absolute());
         zoxide::zoxide_add(path.to_str().expect("cannot convert path to string"))?;

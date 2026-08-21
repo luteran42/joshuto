@@ -284,13 +284,82 @@ mod preview_after_cd_repro {
                 .child_list_ref()
                 .is_some()
         });
-        let child = app_state
-            .state
-            .tab_state_ref()
-            .curr_tab_ref()
-            .child_list_ref()
-            .expect("cursor entry's listing present");
-        assert_eq!(child.contents.len(), 1, "album contains one file");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn fast_cursor_movement_does_not_poison_preview_loading() {
+        use crate::commands::cursor_move::cursor_move;
+
+        let tmp = std::env::temp_dir().join(format!(
+            "joshuto_fast_scroll_repro_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+
+        for i in 0..5 {
+            let sub = tmp.join(format!("folder_{:02}", i));
+            fs::create_dir_all(&sub).unwrap();
+            fs::write(sub.join("file.txt"), b"hello").unwrap();
+        }
+
+        let mut app_state = make_app_state();
+        spawn_tab(&mut app_state, &tmp);
+
+        // Rapidly scroll across folders 0 -> 1 -> 2 -> 3
+        for i in 0..=3 {
+            cursor_move(&mut app_state, i);
+            let tab = app_state.state.tab_state_ref().curr_tab_ref();
+            if let Some(entry) = tab.curr_list_ref().and_then(|l| l.curr_entry_ref()) {
+                let p = entry.file_path().to_path_buf();
+                crate::preview::preview_dir::Background::load_preview(&mut app_state, p);
+            }
+        }
+
+        // The final folder (folder_03) preview must complete
+        pump_until(&mut app_state, Duration::from_secs(5), |state| {
+            state
+                .state
+                .tab_state_ref()
+                .curr_tab_ref()
+                .child_list_ref()
+                .is_some()
+        });
+
+        let tab = app_state.state.tab_state_ref().curr_tab_ref();
+        let child = tab.child_list_ref().expect("folder_03 preview loaded");
+        assert_eq!(child.contents.len(), 1);
+
+        // Skipped folders must not be stuck in Loading state
+        for i in 0..3 {
+            let skipped_path = tmp.join(format!("folder_{:02}", i));
+            assert!(
+                tab.history_metadata_ref().get(&skipped_path).is_none(),
+                "skipped folder_{:02} loading state was properly cleaned up",
+                i
+            );
+        }
+
+        // Moving back to a previously skipped folder (folder_01) must load its preview cleanly
+        cursor_move(&mut app_state, 1);
+        let tab = app_state.state.tab_state_ref().curr_tab_ref();
+        let entry = tab.curr_list_ref().and_then(|l| l.curr_entry_ref()).unwrap();
+        let p = entry.file_path().to_path_buf();
+        crate::preview::preview_dir::Background::load_preview(&mut app_state, p);
+
+        pump_until(&mut app_state, Duration::from_secs(5), |state| {
+            state
+                .state
+                .tab_state_ref()
+                .curr_tab_ref()
+                .child_list_ref()
+                .is_some()
+        });
+
+        let tab = app_state.state.tab_state_ref().curr_tab_ref();
+        let child = tab.child_list_ref().expect("folder_01 preview loaded");
+        assert_eq!(child.contents.len(), 1);
 
         let _ = fs::remove_dir_all(&tmp);
     }

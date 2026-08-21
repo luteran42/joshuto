@@ -54,9 +54,7 @@ pub fn cursor_move(app_state: &mut AppState, new_index: usize) {
     let display_options = &app_state.config.display_options;
     let curr_tab = app_state.state.tab_state_mut().curr_tab_mut();
     curr_tab.pending_cursor = None;
-    if let Some(prev_token) = curr_tab.preview_cancel_token.take() {
-        prev_token.store(true, std::sync::atomic::Ordering::Relaxed);
-    }
+    curr_tab.cancel_preview_load();
     if let Some(curr_list) = curr_tab.curr_list_mut() {
         if !curr_list.is_empty() {
             let dir_len = curr_list.len();

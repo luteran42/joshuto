@@ -172,28 +172,30 @@ pub fn process_dir_preview(
     path: path::PathBuf,
     res: io::Result<JoshutoDirList>,
 ) {
-    for (tab_id, tab) in app_state.state.tab_state_mut().iter_mut() {
-        if *tab_id == id {
-            match res {
-                Ok(dirlist) => {
-                    // remove from loading state
-                    tab.history_metadata_mut().remove(dirlist.file_path());
-
-                    let history = tab.history_mut();
-                    let dir_path = dirlist.file_path().to_path_buf();
-                    history.insert(dir_path, dirlist);
-                }
-                Err(e) => {
-                    // set to false so we don't load again
-                    tab.history_metadata_mut().insert(
-                        path,
-                        PreviewDirState::Error {
-                            message: e.to_string(),
-                        },
-                    );
-                }
+    if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&id) {
+        if let Some((in_flight_path, _)) = &tab.preview_in_flight {
+            if *in_flight_path == path {
+                tab.preview_in_flight = None;
             }
-            break;
+        }
+        match res {
+            Ok(dirlist) => {
+                // remove from loading state
+                tab.history_metadata_mut().remove(dirlist.file_path());
+
+                let history = tab.history_mut();
+                let dir_path = dirlist.file_path().to_path_buf();
+                history.insert(dir_path, dirlist);
+            }
+            Err(e) => {
+                // set to false so we don't load again
+                tab.history_metadata_mut().insert(
+                    path,
+                    PreviewDirState::Error {
+                        message: e.to_string(),
+                    },
+                );
+            }
         }
     }
 }
@@ -214,6 +216,11 @@ pub fn process_directory_load(
     let mut error_messages = Vec::new();
 
     if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&id) {
+        if let Some((in_flight_path, _)) = &tab.dir_load_in_flight {
+            if *in_flight_path == path {
+                tab.dir_load_in_flight = None;
+            }
+        }
         // remove from loading state
         tab.history_metadata_mut().remove(&path);
         match res {

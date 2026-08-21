@@ -33,10 +33,10 @@ pub struct JoshutoTab {
     pub pending_cursor: Option<String>,
     // sequence number to invalidate stale background directory loads
     pub load_generation: u64,
-    // cancellation token for in-flight directory load on this tab
-    pub dir_cancel_token: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
-    // cancellation token for in-flight directory preview on this tab
-    pub preview_cancel_token: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    // in-flight directory load path and cancellation token
+    pub dir_load_in_flight: Option<(path::PathBuf, std::sync::Arc<std::sync::atomic::AtomicBool>)>,
+    // in-flight directory preview path and cancellation token
+    pub preview_in_flight: Option<(path::PathBuf, std::sync::Arc<std::sync::atomic::AtomicBool>)>,
 }
 
 impl JoshutoTab {
@@ -56,11 +56,27 @@ impl JoshutoTab {
             options: tab_options,
             pending_cursor: None,
             load_generation: 0,
-            dir_cancel_token: None,
-            preview_cancel_token: None,
+            dir_load_in_flight: None,
+            preview_in_flight: None,
         };
 
         Ok(new_tab)
+    }
+
+    /// Cancels any in-flight directory preview for this tab and clears its loading metadata.
+    pub fn cancel_preview_load(&mut self) {
+        if let Some((path, token)) = self.preview_in_flight.take() {
+            token.store(true, std::sync::atomic::Ordering::Relaxed);
+            self.history_metadata.remove(&path);
+        }
+    }
+
+    /// Cancels any in-flight directory load for this tab and clears its loading metadata.
+    pub fn cancel_dir_load(&mut self) {
+        if let Some((path, token)) = self.dir_load_in_flight.take() {
+            token.store(true, std::sync::atomic::Ordering::Relaxed);
+            self.history_metadata.remove(&path);
+        }
     }
 
     /// Returns this tab's display options.

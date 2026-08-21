@@ -141,10 +141,9 @@ impl Background {
 
         let cancel_token = Arc::new(AtomicBool::new(false));
         if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&tab_id) {
-            // Cancel previous in-flight preview request for this tab
-            if let Some(prev_token) = tab.preview_cancel_token.replace(cancel_token.clone()) {
-                prev_token.store(true, Ordering::Relaxed);
-            }
+            // Cancel previous in-flight preview request for this tab and clear its loading state
+            tab.cancel_preview_load();
+            tab.preview_in_flight = Some((dir_path.clone(), cancel_token.clone()));
             tab.history_metadata_mut()
                 .insert(dir_path.clone(), PreviewDirState::Loading);
         }
@@ -180,10 +179,9 @@ impl Background {
 
         let cancel_token = Arc::new(AtomicBool::new(false));
         let generation = if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&tab_id) {
-            // Cancel previous in-flight directory load for this tab
-            if let Some(prev_token) = tab.dir_cancel_token.replace(cancel_token.clone()) {
-                prev_token.store(true, Ordering::Relaxed);
-            }
+            // Cancel previous in-flight directory load for this tab and clear its loading state
+            tab.cancel_dir_load();
+            tab.dir_load_in_flight = Some((dir_path.clone(), cancel_token.clone()));
             if !cached {
                 tab.history_metadata_mut()
                     .insert(dir_path.clone(), PreviewDirState::Loading);
