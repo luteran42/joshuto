@@ -59,13 +59,22 @@ impl PreviewState {
         let thread_script_event_tx = event_tx.clone();
         thread::spawn(move || {
             if let Some(ref script) = script {
-                for (path, rect) in receiver {
-                    PreviewState::spawn_command(
-                        path.clone(),
-                        script.to_path_buf(),
-                        rect,
-                        thread_script_event_tx.clone(),
-                    );
+                loop {
+                    // Drain and get the latest requested script preview
+                    if let Some((path, rect)) = receiver
+                        .try_iter()
+                        .last()
+                        .or_else(|| receiver.iter().next())
+                    {
+                        PreviewState::spawn_command(
+                            path,
+                            script.to_path_buf(),
+                            rect,
+                            thread_script_event_tx.clone(),
+                        );
+                    } else {
+                        return;
+                    }
                 }
             }
         });

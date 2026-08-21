@@ -160,12 +160,13 @@ pub fn build_dirlist_from_contents(
 }
 
 /// Reads the immediate (or, if flattened, nested) contents of `path` from disk, keeping only
-/// entries that pass `filter_func`.
-pub fn read_directory<F>(
+/// entries that pass `filter_func`, with an optional maximum number of entries to read.
+pub fn read_directory_with_limit<F>(
     path: &Path,
     filter_func: F,
     display_options: &DisplayOption,
     tab_options: &TabDisplayOption,
+    max_entries: Option<usize>,
 ) -> io::Result<Vec<JoshutoDirEntry>>
 where
     F: Fn(&walkdir::DirEntry, &DisplayOption, &DirListDisplayOptions) -> bool,
@@ -175,7 +176,7 @@ where
         .map(|v| v.to_owned())
         .unwrap_or_default();
 
-    let results: Vec<JoshutoDirEntry> = WalkDir::new(path)
+    let walk = WalkDir::new(path)
         .max_depth(dirlist_opts.depth() as usize + 1)
         .into_iter()
         .filter_entry(|e| {
@@ -192,10 +193,28 @@ where
                 true
             }
         })
-        .filter_map(|res| JoshutoDirEntry::from(&res.ok()?, path, display_options).ok())
-        .collect();
+        .filter_map(|res| JoshutoDirEntry::from(&res.ok()?, path, display_options).ok());
+
+    let results: Vec<JoshutoDirEntry> = match max_entries {
+        Some(limit) => walk.take(limit).collect(),
+        None => walk.collect(),
+    };
 
     Ok(results)
+}
+
+/// Reads the immediate (or, if flattened, nested) contents of `path` from disk, keeping only
+/// entries that pass `filter_func`.
+pub fn read_directory<F>(
+    path: &Path,
+    filter_func: F,
+    display_options: &DisplayOption,
+    tab_options: &TabDisplayOption,
+) -> io::Result<Vec<JoshutoDirEntry>>
+where
+    F: Fn(&walkdir::DirEntry, &DisplayOption, &DirListDisplayOptions) -> bool,
+{
+    read_directory_with_limit(path, filter_func, display_options, tab_options, None)
 }
 
 /// Returns a fresh listing for the ancestor `path`, reusing the cached listing without any disk
