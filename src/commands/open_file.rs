@@ -1,6 +1,6 @@
 use std::path;
 
-use crate::commands::{quit, reload};
+use crate::commands::quit;
 use crate::config::app::AppConfig;
 use crate::error::{AppError, AppErrorKind, AppResult};
 use crate::types::mimetype::ProgramEntry;
@@ -173,8 +173,7 @@ pub fn open(app_state: &mut AppState, backend: &mut AppBackend) -> AppResult {
         None => (),
         Some(entry) if entry.file_path().is_dir() => {
             let path = entry.file_path().to_path_buf();
-            change_directory::cd(path.as_path(), app_state, true)?;
-            reload::soft_reload_curr_tab(app_state)?;
+            change_directory::change_directory(app_state, path.as_path())?;
         }
         Some(entry) => {
             if app_state.args.file_chooser {
