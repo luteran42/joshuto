@@ -252,6 +252,58 @@ See [docs](/docs)
 
 Please create an issue :)
 
+## Differences from upstream (kamiyaa/main)
+
+This branch (`lali-joshuto-new`) builds on upstream joshuto with a focus on
+**file-operation UX** and **directory-listing performance**.
+
+### Selection & operation highlights
+
+- Distinct, themeable colors per pending file operation. A new `[mark]` table in
+  [`config/theme.toml`](/config/theme.toml) lets you color entries that are
+  queued for a cut, copy, or symlink operation separately from the normal
+  selection:
+  - `mark.cut` &mdash; red (default)
+  - `mark.copy` &mdash; orange (`rgb(235, 104, 65)`)
+  - `mark.symlink` &mdash; pink (`rgb(254, 132, 172)`)
+- The default selection colors were also tweaked: `[selection]` is now
+  `light_green` and `[visual_mode_selection]` is `light_yellow`.
+- Cut/copy/symlink now **mark the affected entries across all tabs** (stored in
+  the directory history), so the pending operation stays visible wherever you
+  navigate &mdash; not just in the tab where it was initiated.
+
+### Cancelling file operations
+
+- New `cancel_file_operation` command (bound to `p c` by default) clears the
+  pending cut/copy/symlink and removes all of its visual marks. See
+  [`docs/configuration/keymap.toml.md`](/docs/configuration/keymap.toml.md).
+
+### Performance improvements (directory listing & previews)
+
+- **Background directory loading:** directory listings are read on worker
+  threads (`LoadDirectory` events) so the UI stays responsive; unchanged
+  ancestor listings are reused from the cache instead of being re-read.
+- **Fewer stat syscalls:** sorting uses already-cached entry metadata, and the
+  redundant follow-`stat` for non-symlinks was removed (directory loads are
+  noticeably faster on large directories).
+- **Bounded worker pool + cancellation tokens** for directory and preview tasks,
+  so rapid cursor movement cancels in-flight work instead of letting stale
+  results pile up. Generation tracking prevents a late load from overwriting a
+  newer listing.
+- **Faster previews:** a directory preview reads only the first 200 entries for
+  an instant first paint, then keeps reading the rest on the background thread
+  and replaces the partial listing with the complete, fully-counted one (no
+  manual refresh needed). The script-preview channel is drained so only the
+  latest entry is rendered.
+- A small bounded-concurrency `semaphore` utility was added to cap parallel work.
+
+### Other
+
+- New `restart` command.
+- State is persisted when opening a new tab.
+- Dependency and build updates (e.g. `ratatui-image` 1.0.5, `zigbuild`/musl
+  build tweaks).
+
 ## Features
 
 - Tabs
