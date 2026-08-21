@@ -290,11 +290,8 @@ This branch (`lali-joshuto-new`) builds on upstream joshuto with a focus on
   so rapid cursor movement cancels in-flight work instead of letting stale
   results pile up. Generation tracking prevents a late load from overwriting a
   newer listing.
-- **Faster previews:** a directory preview reads only the first 200 entries for
-  an instant first paint, then keeps reading the rest on the background thread
-  and replaces the partial listing with the complete, fully-counted one (no
-  manual refresh needed). The script-preview channel is drained so only the
-  latest entry is rendered.
+- **Faster previews:** The script-preview channel is drained
+  so only the latest entry is rendered.
 - A small bounded-concurrency `semaphore` utility was added to cap parallel work.
 
 ### Other
