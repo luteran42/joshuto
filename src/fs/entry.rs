@@ -44,10 +44,7 @@ impl JoshutoDirEntry {
             .and_then(|s| s.to_str())
             .map(|s| s.to_string());
 
-        let symlink_metadata = direntry
-            .metadata()
-            .map_err(io::Error::other)?
-            .clone();
+        let symlink_metadata = direntry.metadata().map_err(io::Error::other)?.clone();
 
         let mut metadata = JoshutoMetadata::from_symlink_metadata(&path, symlink_metadata)?;
 

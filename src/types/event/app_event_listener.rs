@@ -291,10 +291,8 @@ mod preview_after_cd_repro {
     fn fast_cursor_movement_does_not_poison_preview_loading() {
         use crate::commands::cursor_move::cursor_move;
 
-        let tmp = std::env::temp_dir().join(format!(
-            "joshuto_fast_scroll_repro_{}",
-            std::process::id()
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("joshuto_fast_scroll_repro_{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
 
@@ -344,7 +342,10 @@ mod preview_after_cd_repro {
         // Moving back to a previously skipped folder (folder_01) must load its preview cleanly
         cursor_move(&mut app_state, 1);
         let tab = app_state.state.tab_state_ref().curr_tab_ref();
-        let entry = tab.curr_list_ref().and_then(|l| l.curr_entry_ref()).unwrap();
+        let entry = tab
+            .curr_list_ref()
+            .and_then(|l| l.curr_entry_ref())
+            .unwrap();
         let p = entry.file_path().to_path_buf();
         crate::preview::preview_dir::Background::load_preview(&mut app_state, p);
 
