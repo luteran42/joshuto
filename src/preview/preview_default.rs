@@ -46,7 +46,7 @@ pub fn load_preview_path(
         let need_to_load = tab
             .history_metadata_ref()
             .get(p.as_path())
-            .map(|m| m.is_loading())
+            .map(|m| !m.is_loading())
             .unwrap_or(true)
             && tab
                 .history_ref()

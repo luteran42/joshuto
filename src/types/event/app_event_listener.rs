@@ -67,6 +67,7 @@ pub enum AppEvent {
     // background directory-listing thread events
     LoadDirectory {
         id: Uuid,
+        generation: u64,
         path: path::PathBuf,
         res: Box<io::Result<Vec<JoshutoDirEntry>>>,
     },
@@ -212,11 +213,10 @@ mod preview_after_cd_repro {
                         let entry = &list.contents[index];
                         if entry.metadata.is_dir() {
                             let p = entry.file_path().to_path_buf();
-                            let metadata = entry.metadata.clone();
                             let need_to_load = curr_tab
                                 .history_metadata_ref()
                                 .get(p.as_path())
-                                .map(|m| m.is_loading())
+                                .map(|m| !m.is_loading())
                                 .unwrap_or(true)
                                 && curr_tab
                                     .history_ref()

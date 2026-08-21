@@ -44,7 +44,12 @@ impl JoshutoDirEntry {
             .and_then(|s| s.to_str())
             .map(|s| s.to_string());
 
-        let mut metadata = JoshutoMetadata::from(&path)?;
+        let symlink_metadata = direntry
+            .metadata()
+            .map_err(io::Error::other)?
+            .clone();
+
+        let mut metadata = JoshutoMetadata::from_symlink_metadata(&path, symlink_metadata)?;
 
         if options.automatically_count_files && metadata.file_type() == FileType::Directory {
             if let Ok(size) = get_directory_size(path.as_path()) {

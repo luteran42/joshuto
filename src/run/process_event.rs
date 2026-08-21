@@ -80,9 +80,12 @@ pub fn process_noninteractive(event: AppEvent, app_state: &mut AppState) {
         AppEvent::IoTaskResult(res) => process_finished_io_task(app_state, res),
         AppEvent::PreviewDir { id, path, res } => process_dir_preview(app_state, id, path, *res),
         AppEvent::PreviewFile { path, res } => process_file_preview(app_state, path, res),
-        AppEvent::LoadDirectory { id, path, res } => {
-            process_directory_load(app_state, id, path, *res)
-        }
+        AppEvent::LoadDirectory {
+            id,
+            generation,
+            path,
+            res,
+        } => process_directory_load(app_state, id, generation, path, *res),
         AppEvent::Signal(signal::SIGWINCH) => {}
         AppEvent::Filesystem(e) => process_filesystem_event(e, app_state),
         AppEvent::ChildProcessComplete(child_id) => {
@@ -202,16 +205,15 @@ pub fn process_dir_preview(
 pub fn process_directory_load(
     app_state: &mut AppState,
     id: Uuid,
+    generation: u64,
     path: path::PathBuf,
     res: io::Result<Vec<JoshutoDirEntry>>,
 ) {
     let ui_state = app_state.state.ui_state_ref().clone();
     let display_options = app_state.config.display_options.clone();
     let mut error_messages = Vec::new();
-    for (tab_id, tab) in app_state.state.tab_state_mut().iter_mut() {
-        if *tab_id != id {
-            continue;
-        }
+
+    if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&id) {
         // remove from loading state
         tab.history_metadata_mut().remove(&path);
         match res {
@@ -225,10 +227,12 @@ pub fn process_directory_load(
                     &tab_options,
                 ) {
                     Ok(dirlist) => {
-                        if tab.get_cwd() == path.as_path() {
+                        let is_current_load =
+                            tab.get_cwd() == path.as_path() && tab.load_generation == generation;
+                        if is_current_load {
                             let mut dirlists = Vec::with_capacity(8);
                             dirlists.push(dirlist);
-                            let mut prev: Option<&path::Path> = None;
+                            let mut prev: Option<&path::Path> = Some(path.as_path());
                             for ancestor in path.ancestors().skip(1) {
                                 match reuse_or_read_ancestor(
                                     ancestor,
@@ -275,8 +279,8 @@ pub fn process_directory_load(
                 }
             }
         }
-        break;
     }
+
     for message in error_messages {
         app_state.state.message_queue_mut().push_error(message);
     }

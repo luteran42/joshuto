@@ -52,12 +52,9 @@ pub fn cursor_move(app_state: &mut AppState, new_index: usize) {
     let mut new_index = new_index;
     let ui_state = app_state.state.ui_state_ref().clone();
     let display_options = &app_state.config.display_options;
-    if let Some(curr_list) = app_state
-        .state
-        .tab_state_mut()
-        .curr_tab_mut()
-        .curr_list_mut()
-    {
+    let curr_tab = app_state.state.tab_state_mut().curr_tab_mut();
+    curr_tab.pending_cursor = None;
+    if let Some(curr_list) = curr_tab.curr_list_mut() {
         if !curr_list.is_empty() {
             let dir_len = curr_list.len();
             if new_index >= dir_len {

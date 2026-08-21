@@ -31,6 +31,8 @@ pub struct JoshutoTab {
     pub navigation_history: NavigationHistory,
     // file name the cursor should land on once the current directory's listing has loaded
     pub pending_cursor: Option<String>,
+    // sequence number to invalidate stale background directory loads
+    pub load_generation: u64,
 }
 
 impl JoshutoTab {
@@ -49,6 +51,7 @@ impl JoshutoTab {
             navigation_history,
             options: tab_options,
             pending_cursor: None,
+            load_generation: 0,
         };
 
         Ok(new_tab)

@@ -64,10 +64,19 @@ impl JoshutoMetadata {
     /// Reads metadata for `path`, following symlinks where possible and falling back to
     /// symlink metadata if the target is broken.
     pub fn from(path: &path::Path) -> io::Result<Self> {
+        let symlink_metadata = fs::symlink_metadata(path)?;
+        Self::from_symlink_metadata(path, symlink_metadata)
+    }
+
+    /// Reads metadata for `path` given pre-fetched `symlink_metadata`, avoiding redundant
+    /// `symlink_metadata` syscalls.
+    pub fn from_symlink_metadata(
+        path: &path::Path,
+        symlink_metadata: fs::Metadata,
+    ) -> io::Result<Self> {
         #[cfg(unix)]
         use std::os::unix::fs::MetadataExt;
 
-        let symlink_metadata = fs::symlink_metadata(path)?;
         let is_symlink = symlink_metadata.file_type().is_symlink();
         // Only symlinks need a second (follow) stat: for regular files and directories
         // `symlink_metadata` already returned the same data.

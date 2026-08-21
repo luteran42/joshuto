@@ -75,9 +75,9 @@ impl Background {
         let tab_options = app_state
             .state
             .tab_state_ref()
-            .curr_tab_ref()
-            .option_ref()
-            .clone();
+            .tab_ref(&tab_id)
+            .map(|t| t.option_ref().clone())
+            .unwrap_or_default();
 
         let cached = app_state
             .state
@@ -85,12 +85,16 @@ impl Background {
             .tab_ref(&tab_id)
             .map(|t| t.history_ref().contains_key(dir_path.as_path()))
             .unwrap_or(false);
-        if !cached {
-            if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&tab_id) {
+        let generation = if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&tab_id) {
+            if !cached {
                 tab.history_metadata_mut()
                     .insert(dir_path.clone(), PreviewDirState::Loading);
             }
-        }
+            tab.load_generation += 1;
+            tab.load_generation
+        } else {
+            0
+        };
 
         thread::spawn(move || {
             let path_clone = dir_path.clone();
@@ -98,6 +102,7 @@ impl Background {
             let dir_res = read_directory(&dir_path, filter_func, &options, &tab_options);
             let res = AppEvent::LoadDirectory {
                 id: tab_id,
+                generation,
                 path: path_clone,
                 res: Box::new(dir_res),
             };
