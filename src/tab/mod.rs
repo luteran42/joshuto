@@ -33,8 +33,8 @@ pub struct JoshutoTab {
     pub pending_cursor: Option<String>,
     // sequence number to invalidate stale background directory loads
     pub load_generation: u64,
-    // in-flight directory load path and cancellation token
-    pub dir_load_in_flight: Option<(path::PathBuf, std::sync::Arc<std::sync::atomic::AtomicBool>)>,
+    // in-flight directory loads by path, each with its own cancellation token
+    pub dir_load_in_flight: HashMap<path::PathBuf, std::sync::Arc<std::sync::atomic::AtomicBool>>,
     // in-flight directory preview path and cancellation token
     pub preview_in_flight: Option<(path::PathBuf, std::sync::Arc<std::sync::atomic::AtomicBool>)>,
 }
@@ -56,7 +56,7 @@ impl JoshutoTab {
             options: tab_options,
             pending_cursor: None,
             load_generation: 0,
-            dir_load_in_flight: None,
+            dir_load_in_flight: HashMap::new(),
             preview_in_flight: None,
         };
 
@@ -71,11 +71,12 @@ impl JoshutoTab {
         }
     }
 
-    /// Cancels any in-flight directory load for this tab and clears its loading metadata.
-    pub fn cancel_dir_load(&mut self) {
-        if let Some((path, token)) = self.dir_load_in_flight.take() {
+    /// Cancels the in-flight background directory load for `path`, if any, and clears its
+    /// loading metadata. Loads for other paths are left untouched.
+    pub fn cancel_dir_load_for(&mut self, path: &path::Path) {
+        if let Some(token) = self.dir_load_in_flight.remove(path) {
             token.store(true, std::sync::atomic::Ordering::Relaxed);
-            self.history_metadata.remove(&path);
+            self.history_metadata.remove(path);
         }
     }
 

@@ -288,6 +288,91 @@ mod preview_after_cd_repro {
     }
 
     #[test]
+    fn toggle_hidden_shows_hidden_files_without_navigation() {
+        use crate::commands::cursor_move::cursor_move;
+
+        let tmp =
+            std::env::temp_dir().join(format!("joshuto_toggle_hidden_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+
+        // a visited directory under the cursor means the soft reload triggered by
+        // toggle_hidden queues a third (child) load after the current-directory load
+        let sub = tmp.join("subdir");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join("inner.txt"), b"x").unwrap();
+        fs::write(tmp.join(".hidden_file"), b"x").unwrap();
+        fs::write(tmp.join("visible.txt"), b"x").unwrap();
+
+        let mut app_state = make_app_state();
+        spawn_tab(&mut app_state, &tmp);
+
+        // put the cursor on subdir and preview it so its listing lands in history
+        let sub_idx = app_state
+            .state
+            .tab_state_ref()
+            .curr_tab_ref()
+            .curr_list_ref()
+            .and_then(|l| l.get_index_from_name("subdir"))
+            .expect("subdir listed");
+        cursor_move(&mut app_state, sub_idx);
+        crate::preview::preview_dir::Background::load_preview(&mut app_state, sub.clone());
+        pump_until(&mut app_state, Duration::from_secs(10), |state| {
+            state
+                .state
+                .tab_state_ref()
+                .curr_tab_ref()
+                .child_list_ref()
+                .is_some()
+        });
+
+        // sanity: hidden file is filtered out before the toggle
+        assert!(!app_state
+            .state
+            .tab_state_ref()
+            .curr_tab_ref()
+            .curr_list_ref()
+            .unwrap()
+            .iter()
+            .any(|e| e.file_name() == ".hidden_file"));
+
+        crate::commands::show_hidden::toggle_hidden(&mut app_state).unwrap();
+
+        // the cwd listing must pick up hidden entries without any navigation
+        pump_until(&mut app_state, Duration::from_secs(10), |state| {
+            state
+                .state
+                .tab_state_ref()
+                .curr_tab_ref()
+                .curr_list_ref()
+                .map(|l| l.iter().any(|e| e.file_name() == ".hidden_file"))
+                .unwrap_or(false)
+        });
+        let list = app_state
+            .state
+            .tab_state_ref()
+            .curr_tab_ref()
+            .curr_list_ref()
+            .expect("cwd listing present");
+        assert!(list.iter().any(|e| e.file_name() == "visible.txt"));
+        assert!(list.iter().any(|e| e.file_name() == "subdir"));
+
+        // toggling back hides them again, also without navigation
+        crate::commands::show_hidden::toggle_hidden(&mut app_state).unwrap();
+        pump_until(&mut app_state, Duration::from_secs(10), |state| {
+            state
+                .state
+                .tab_state_ref()
+                .curr_tab_ref()
+                .curr_list_ref()
+                .map(|l| !l.iter().any(|e| e.file_name() == ".hidden_file"))
+                .unwrap_or(false)
+        });
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn fast_cursor_movement_does_not_poison_preview_loading() {
         use crate::commands::cursor_move::cursor_move;
 

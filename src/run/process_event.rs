@@ -216,11 +216,8 @@ pub fn process_directory_load(
     let mut error_messages = Vec::new();
 
     if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&id) {
-        if let Some((in_flight_path, _)) = &tab.dir_load_in_flight {
-            if *in_flight_path == path {
-                tab.dir_load_in_flight = None;
-            }
-        }
+        // this load is done; drop its cancellation token (other paths may still be in flight)
+        tab.dir_load_in_flight.remove(&path);
         // remove from loading state
         tab.history_metadata_mut().remove(&path);
         match res {
