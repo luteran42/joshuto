@@ -57,7 +57,6 @@ unicode-width = "^0"
 uuid = { version = "^1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 walkdir = "^2"
 whoami = "^2"
-xdg = "^2"
 
 [features]
 devicons = ["phf"]
