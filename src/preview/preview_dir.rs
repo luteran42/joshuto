@@ -21,12 +21,6 @@ pub enum PreviewDirState {
     Error { message: String },
 }
 
-impl PreviewDirState {
-    /// Returns `true` if the preview is still being generated.
-    pub fn is_loading(&self) -> bool {
-        matches!(*self, Self::Loading)
-    }
-}
 
 enum DirTask {
     LoadDirectory {

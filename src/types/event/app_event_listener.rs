@@ -216,8 +216,7 @@ mod preview_after_cd_repro {
                             let need_to_load = curr_tab
                                 .history_metadata_ref()
                                 .get(p.as_path())
-                                .map(|m| !m.is_loading())
-                                .unwrap_or(true)
+                                .is_none()
                                 && curr_tab
                                     .history_ref()
                                     .get(p.as_path())
