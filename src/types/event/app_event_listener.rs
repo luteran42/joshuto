@@ -213,15 +213,13 @@ mod preview_after_cd_repro {
                         let entry = &list.contents[index];
                         if entry.metadata.is_dir() {
                             let p = entry.file_path().to_path_buf();
-                            let need_to_load = curr_tab
-                                .history_metadata_ref()
-                                .get(p.as_path())
-                                .is_none()
-                                && curr_tab
-                                    .history_ref()
-                                    .get(p.as_path())
-                                    .map(|e| e.need_update())
-                                    .unwrap_or(true);
+                            let need_to_load =
+                                curr_tab.history_metadata_ref().get(p.as_path()).is_none()
+                                    && curr_tab
+                                        .history_ref()
+                                        .get(p.as_path())
+                                        .map(|e| e.need_update())
+                                        .unwrap_or(true);
                             if need_to_load {
                                 crate::preview::preview_dir::Background::load_preview(app_state, p);
                             }

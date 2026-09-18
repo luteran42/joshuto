@@ -21,7 +21,6 @@ pub enum PreviewDirState {
     Error { message: String },
 }
 
-
 enum DirTask {
     LoadDirectory {
         tab_id: Uuid,
