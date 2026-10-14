@@ -156,6 +156,7 @@ impl PreviewState {
         thread::spawn(move || {
             let _guard = semaphore.access();
             let output = Command::new(script)
+                .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
                 .arg("--path")
@@ -288,7 +289,9 @@ pub fn call_preview_removed_hook(preview_options: &PreviewOption) {
     if let Some(hook_script) = preview_removed_hook_script {
         let hook_script = hook_script.to_path_buf();
         let _ = thread::spawn(|| {
-            let _ = process::Command::new(hook_script).status();
+            let _ = process::Command::new(hook_script)
+                .stdin(Stdio::null())
+                .status();
         });
     }
 }
@@ -341,6 +344,7 @@ fn call_preview_shown_hook(preview_area: PreviewArea, preview_options: &PreviewO
         let hook_script = hook_script.to_path_buf();
         let _ = thread::spawn(move || {
             let _ = process::Command::new(hook_script.as_path())
+                .stdin(Stdio::null())
                 .arg(preview_area.file_preview_path.as_path())
                 .arg(preview_area.preview_area.x.to_string())
                 .arg(preview_area.preview_area.y.to_string())

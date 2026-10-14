@@ -157,6 +157,29 @@ impl std::convert::AsRef<str> for JoshutoDirEntry {
     }
 }
 
+impl std::cmp::PartialEq for JoshutoDirEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.file_path() == other.file_path()
+    }
+}
+impl std::cmp::Eq for JoshutoDirEntry {}
+
+impl std::cmp::PartialOrd for JoshutoDirEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl std::cmp::Ord for JoshutoDirEntry {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.file_path().cmp(other.file_path())
+    }
+}
+
+fn get_directory_size(path: &path::Path) -> io::Result<usize> {
+    fs::read_dir(path).map(|s| s.count())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::types::option::display::DisplayOption;
@@ -189,27 +212,4 @@ mod tests {
         assert!(!entry.is_marked_copy());
         assert!(entry.is_selected());
     }
-}
-
-impl std::cmp::PartialEq for JoshutoDirEntry {
-    fn eq(&self, other: &Self) -> bool {
-        self.file_path() == other.file_path()
-    }
-}
-impl std::cmp::Eq for JoshutoDirEntry {}
-
-impl std::cmp::PartialOrd for JoshutoDirEntry {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl std::cmp::Ord for JoshutoDirEntry {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.file_path().cmp(other.file_path())
-    }
-}
-
-fn get_directory_size(path: &path::Path) -> io::Result<usize> {
-    fs::read_dir(path).map(|s| s.count())
 }
