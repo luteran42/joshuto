@@ -119,7 +119,14 @@ impl JoshutoDirList {
         self.update_visual_mode_selection();
     }
 
-    fn visual_mode_disable(&mut self) {
+    /// Commits the visual-mode range to permanent selection and disables visual mode,
+    /// returning the paths that were promoted to permanent selection.
+    fn visual_mode_disable(&mut self) -> Vec<path::PathBuf> {
+        let committed: Vec<path::PathBuf> = self
+            .iter()
+            .filter(|entry| entry.is_visual_mode_selected())
+            .map(|entry| entry.file_path_buf())
+            .collect();
         self.visual_mode_anchor_index = None;
         self.iter_mut().for_each(|entry| {
             if entry.is_visual_mode_selected() {
@@ -127,6 +134,7 @@ impl JoshutoDirList {
             }
         });
         self.update_visual_mode_selection();
+        committed
     }
 
     /// Cancels visual mode without keeping the in-progress selection.
@@ -135,10 +143,13 @@ impl JoshutoDirList {
         self.update_visual_mode_selection();
     }
 
-    /// Enables visual mode if inactive, or commits and disables it if active.
-    pub fn toggle_visual_mode(&mut self) {
+    /// Enables visual mode if inactive, or commits and disables it if active. When committing,
+    /// returns the paths promoted to permanent selection (so the caller can sync them across
+    /// tabs); empty when visual mode was just enabled or there was no selection.
+    pub fn toggle_visual_mode(&mut self) -> Vec<path::PathBuf> {
         if self.get_visual_mode_anchor_index().is_none() {
-            self.visual_mode_enable()
+            self.visual_mode_enable();
+            Vec::new()
         } else {
             self.visual_mode_disable()
         }
