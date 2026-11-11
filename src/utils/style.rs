@@ -1,10 +1,9 @@
-use ansi_to_tui::IntoText;
 use lscolors::LsColors;
 use ratatui::style::Style;
 use std::path::Path;
 
 use crate::config::app::AppConfig;
-use crate::fs::{FileType, JoshutoDirEntry, LinkType};
+use crate::fs::{FileType, JoshutoDirEntry};
 use crate::utils::unix;
 
 use crate::THEME_T;
@@ -31,7 +30,6 @@ impl PathStyleIfSome for Style {
 pub fn entry_style(config: &AppConfig, entry: &JoshutoDirEntry) -> Style {
     let metadata = &entry.metadata;
     let filetype = metadata.file_type();
-    let linktype = metadata.link_type();
 
     if entry.is_marked_cut() {
         return mark_selected_style("cut");
@@ -53,9 +51,9 @@ pub fn entry_style(config: &AppConfig, entry: &JoshutoDirEntry) -> Style {
         Some(lscolors) => {
             let path = entry.file_path();
             lscolors_style(lscolors, path)
-                .unwrap_or_else(|| default_style(config, entry, linktype, filetype))
+                .unwrap_or_else(|| default_style(config, entry, metadata, filetype))
         }
-        None => default_style(config, entry, linktype, filetype),
+        None => default_style(config, entry, metadata, filetype),
     }
 }
 
@@ -88,24 +86,29 @@ pub fn entry_prefix(entry: &JoshutoDirEntry) -> &str {
 fn default_style(
     config: &AppConfig,
     entry: &JoshutoDirEntry,
-    linktype: &LinkType,
+    metadata: &crate::fs::JoshutoMetadata,
     filetype: FileType,
 ) -> Style {
-    match linktype {
-        LinkType::Symlink { valid: true, .. } => symlink_valid_style(),
-        LinkType::Symlink { valid: false, .. } => symlink_invalid_style(),
-        LinkType::Normal => match filetype {
-            FileType::Directory => directory_style(),
-            FileType::File => file_style(config, entry),
-            FileType::Link => Style::default()
-                .fg(THEME_T.link.fg)
-                .bg(THEME_T.link.bg)
-                .add_modifier(THEME_T.link.modifier),
-            _ => Style::default()
-                .fg(THEME_T.socket.fg)
-                .bg(THEME_T.socket.bg)
-                .add_modifier(THEME_T.socket.modifier),
-        },
+    // Symlinks: style by whether the target actually resolves (broken links / loops get
+    // `link_invalid`, resolved lazily via the cached follow-stat).
+    if metadata.file_type() == FileType::Link {
+        return if metadata.link_valid() {
+            symlink_valid_style()
+        } else {
+            symlink_invalid_style()
+        };
+    }
+    match filetype {
+        FileType::Directory => directory_style(),
+        FileType::File => file_style(config, entry),
+        FileType::Link => Style::default()
+            .fg(THEME_T.link.fg)
+            .bg(THEME_T.link.bg)
+            .add_modifier(THEME_T.link.modifier),
+        _ => Style::default()
+            .fg(THEME_T.socket.fg)
+            .bg(THEME_T.socket.bg)
+            .add_modifier(THEME_T.socket.modifier),
     }
 }
 
@@ -186,17 +189,71 @@ fn file_style(config: &AppConfig, entry: &JoshutoDirEntry) -> Style {
     }
 }
 
+/// Maps a `nu_ansi_term` color to a ratatui color.
+fn ratatui_color(color: nu_ansi_term::Color) -> ratatui::style::Color {
+    use nu_ansi_term::Color as N;
+    use ratatui::style::Color as R;
+    match color {
+        N::Black => R::Black,
+        N::DarkGray => R::DarkGray,
+        N::Red => R::Red,
+        N::LightRed => R::LightRed,
+        N::Green => R::Green,
+        N::LightGreen => R::LightGreen,
+        N::Yellow => R::Yellow,
+        N::LightYellow => R::LightYellow,
+        N::Blue => R::Blue,
+        N::LightBlue => R::LightBlue,
+        // ANSI color #5 is magenta; nu_ansi_term spells it both `Purple` and `Magenta`
+        N::Purple | N::Magenta => R::Magenta,
+        N::LightPurple | N::LightMagenta => R::LightMagenta,
+        N::Cyan => R::Cyan,
+        N::LightCyan => R::LightCyan,
+        N::White => R::White,
+        N::LightGray => R::Gray,
+        N::Fixed(i) => R::Indexed(i),
+        N::Rgb(r, g, b) => R::Rgb(r, g, b),
+        N::Default => R::Reset,
+    }
+}
+
 fn lscolors_style(lscolors: &LsColors, path: &Path) -> Option<Style> {
-    let nu_ansi_term_style = lscolors.style_for_path(path)?.to_nu_ansi_term_style();
-    // Paths that are not valid UTF-8 are not styled by LS_COLORS.
-    let str = path.to_str()?;
-    let text = nu_ansi_term_style
-        .paint(str)
-        .to_string()
-        .into_bytes()
-        .into_text()
-        .ok()?;
-    // Extract the first Style from the returned Text.
-    let style = text.lines.first()?.spans.first()?.style;
-    Some(style)
+    let nu_style = lscolors.style_for_path(path)?.to_nu_ansi_term_style();
+    let mut style = Style::default();
+    if let Some(fg) = nu_style.foreground {
+        style = style.fg(ratatui_color(fg));
+    }
+    if let Some(bg) = nu_style.background {
+        style = style.bg(ratatui_color(bg));
+    }
+    let mut modifier = ratatui::style::Modifier::empty();
+    let nu_ansi_term::Style {
+        is_bold,
+        is_dimmed,
+        is_italic,
+        is_underline,
+        is_reverse,
+        is_hidden,
+        is_strikethrough,
+        ..
+    } = nu_style;
+    if is_bold || is_dimmed {
+        modifier |= ratatui::style::Modifier::BOLD;
+    }
+    if is_italic {
+        modifier |= ratatui::style::Modifier::ITALIC;
+    }
+    if is_underline {
+        modifier |= ratatui::style::Modifier::UNDERLINED;
+    }
+    if is_reverse {
+        modifier |= ratatui::style::Modifier::REVERSED;
+    }
+    if is_hidden {
+        modifier |= ratatui::style::Modifier::HIDDEN;
+    }
+    if is_strikethrough {
+        modifier |= ratatui::style::Modifier::CROSSED_OUT;
+    }
+    Some(style.add_modifier(modifier))
 }

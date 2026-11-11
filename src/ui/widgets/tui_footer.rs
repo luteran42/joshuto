@@ -4,7 +4,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 
-use crate::fs::{JoshutoDirList, LinkType};
+use crate::fs::JoshutoDirList;
 use crate::tab::TabDisplayOption;
 use crate::utils::format;
 use crate::utils::style::{
@@ -169,8 +169,8 @@ impl Widget for TuiFooter<'_> {
                     ),
                 ];
 
-                if let LinkType::Symlink { target, valid } = entry.metadata.link_type() {
-                    let link_style = if *valid {
+                if let Some(target) = entry.metadata.link_target() {
+                    let link_style = if entry.metadata.link_valid() {
                         symlink_valid_style()
                     } else {
                         symlink_invalid_style()

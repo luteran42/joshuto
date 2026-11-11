@@ -36,11 +36,11 @@ globset = "^0"
 image = "^0.25"
 lazy_static = "^1"
 lscolors = { version = "^0", features = ["nu-ansi-term"] }
+nu-ansi-term = "^0.50"
 nix = { version = "^0", default-features = false, features = ["fs", "signal", "user", "process"] }
 notify = "^8"
 num_cpus = "^1"
 open = "^5"
-phf = { version = "^0", features = ["macros"], optional = true }
 rand = "^0.9"
 ratatui = { version = "^0", default-features = false, features = ["termion"] }
 ratatui-image = { version = "^11", default-features = false, features = ["termion", "serde"] }
@@ -59,7 +59,6 @@ walkdir = "^2"
 whoami = "^2"
 
 [features]
-devicons = ["phf"]
-file_mimetype = []
+devicons = []
 syntax_highlight = ["ansi-to-tui"]
 default = ["devicons", "syntax_highlight"]

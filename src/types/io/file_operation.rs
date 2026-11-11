@@ -1,7 +1,7 @@
 use std::path;
 
 /// The kind of background file operation being performed.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileOperation {
     Cut,
     Copy,

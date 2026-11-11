@@ -31,8 +31,11 @@ pub struct JoshutoTab {
     pub navigation_history: NavigationHistory,
     // file name the cursor should land on once the current directory's listing has loaded
     pub pending_cursor: Option<String>,
-    // sequence number to invalidate stale background directory loads
+    // sequence number used to mint generations for background directory loads
     pub load_generation: u64,
+    // generation each background directory load was started with, by path; a load result is
+    // only applied as "current" if its path's generation still matches
+    pub dir_load_generation: HashMap<path::PathBuf, u64>,
     // in-flight directory loads by path, each with its own cancellation token
     pub dir_load_in_flight: HashMap<path::PathBuf, std::sync::Arc<std::sync::atomic::AtomicBool>>,
     // in-flight directory preview path and cancellation token
@@ -56,6 +59,7 @@ impl JoshutoTab {
             options: tab_options,
             pending_cursor: None,
             load_generation: 0,
+            dir_load_generation: HashMap::new(),
             dir_load_in_flight: HashMap::new(),
             preview_in_flight: None,
         };
@@ -72,12 +76,13 @@ impl JoshutoTab {
     }
 
     /// Cancels the in-flight background directory load for `path`, if any, and clears its
-    /// loading metadata. Loads for other paths are left untouched.
+    /// loading metadata and generation. Loads for other paths are left untouched.
     pub fn cancel_dir_load_for(&mut self, path: &path::Path) {
         if let Some(token) = self.dir_load_in_flight.remove(path) {
             token.store(true, std::sync::atomic::Ordering::Relaxed);
             self.history_metadata.remove(path);
         }
+        self.dir_load_generation.remove(path);
     }
 
     /// Returns this tab's display options.

@@ -45,10 +45,13 @@ impl FileType {
 }
 
 /// Whether an entry is a plain file/directory or a symlink, and if a symlink, its target.
+///
+/// Note: symlink *validity* is not stored here; it is resolved lazily (with a follow-`stat`)
+/// via [`JoshutoMetadata::link_valid`], so broken links are always styled correctly.
 #[derive(Clone, Debug)]
 pub enum LinkType {
     Normal,
-    Symlink { target: String, valid: bool },
+    Symlink { target: String },
 }
 
 /// The filesystem metadata that requires a `stat` syscall. It is loaded lazily (on first access)
@@ -63,6 +66,12 @@ struct Detailed {
     uid: u32,
     #[cfg(unix)]
     gid: u32,
+    // Symlink-only fields: resolved by the follow-`stat` that `Detailed::load` already performs
+    // for links (irrelevant for other file types).
+    /// Whether the symlink's target could be resolved at all (false for broken links and loops).
+    link_valid: bool,
+    /// Whether the symlink's target is a directory.
+    link_target_is_dir: bool,
 }
 
 impl Detailed {
@@ -76,6 +85,8 @@ impl Detailed {
             uid: 0,
             #[cfg(unix)]
             gid: 0,
+            link_valid: false,
+            link_target_is_dir: false,
         }
     }
 
@@ -127,6 +138,11 @@ impl Detailed {
             }
         }
 
+        // For symlinks, `metadata` is the follow-`stat` of the target: its outcome tells us
+        // whether the link is valid and whether the target is a directory.
+        let link_valid = metadata.is_ok();
+        let link_target_is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
+
         Self {
             len,
             modified,
@@ -136,6 +152,8 @@ impl Detailed {
             uid,
             #[cfg(unix)]
             gid,
+            link_valid,
+            link_target_is_dir,
         }
     }
 }
@@ -190,10 +208,7 @@ impl JoshutoMetadata {
             let target = fs::read_link(path)
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default();
-            LinkType::Symlink {
-                target,
-                valid: fs::metadata(path).is_ok(),
-            }
+            LinkType::Symlink { target }
         } else {
             LinkType::Normal
         };
@@ -258,12 +273,7 @@ impl JoshutoMetadata {
             let target = fs::read_link(&path)
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default();
-            // `valid` is resolved lazily (a follow-stat) when the detailed metadata is loaded;
-            // the cursor entry's footer will show the correct state.
-            LinkType::Symlink {
-                target,
-                valid: true,
-            }
+            LinkType::Symlink { target }
         } else {
             LinkType::Normal
         };
@@ -322,7 +332,9 @@ impl JoshutoMetadata {
     pub fn set_mode(&self, mode: Mode) {
         let mut cell = self.detailed.borrow_mut();
         if cell.is_none() {
-            *cell = Some(Detailed::empty());
+            // Load the real metadata (not an empty placeholder) so symlink fields and
+            // other lazily-resolved values stay consistent.
+            *cell = Some(Detailed::load(&self.path));
         }
         cell.as_mut().unwrap().mode = mode;
     }
@@ -349,8 +361,96 @@ impl JoshutoMetadata {
         &self.link_type
     }
 
-    /// Returns `true` if this entry is a directory.
+    /// Returns the symlink's target path as a string, if this entry is a symlink.
+    pub fn link_target(&self) -> Option<&str> {
+        match &self.link_type {
+            LinkType::Symlink { target, .. } => Some(target.as_str()),
+            LinkType::Normal => None,
+        }
+    }
+
+    /// Returns whether a symlink's target could be resolved by a follow-`stat` (false for
+    /// broken links and loops). Always `true` for non-symlink entries with readable metadata.
+    pub fn link_valid(&self) -> bool {
+        self.with_detailed(|d| d.link_valid)
+    }
+
+    /// Returns `true` if this entry is a directory, resolving symlink targets: a symlink
+    /// pointing at a directory counts as a directory (for sorting, previews, and navigation).
     pub fn is_dir(&self) -> bool {
-        self.file_type == FileType::Directory
+        match self.file_type {
+            FileType::Directory => true,
+            FileType::Link => self.with_detailed(|d| d.link_target_is_dir),
+            _ => false,
+        }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::ffi::OsString;
+
+    /// Builds lightweight metadata the way `from_walkdir` does for a symlink, without
+    /// needing a real `walkdir` entry: the follow-`stat` is deferred to first access.
+    fn link_metadata(path: path::PathBuf, target: OsString) -> JoshutoMetadata {
+        JoshutoMetadata::from_lightweight(
+            path,
+            FileType::Link,
+            LinkType::Symlink {
+                target: target.to_string_lossy().to_string(),
+            },
+        )
+    }
+
+    #[test]
+    fn symlink_to_dir_counts_as_dir_and_resolves_validity() {
+        let dir = std::env::temp_dir().join(format!("joshuto-test-{}", uuid::Uuid::new_v4()));
+        let target = dir.join("target");
+        fs::create_dir_all(&target).unwrap();
+        let good = dir.join("good_link");
+        let bad = dir.join("bad_link");
+        std::os::unix::fs::symlink(&target, &good).unwrap();
+        std::os::unix::fs::symlink(dir.join("nonexistent"), &bad).unwrap();
+
+        let good_link = link_metadata(good.clone(), fs::read_link(&good).unwrap().into_os_string());
+        let bad_link = link_metadata(bad.clone(), OsString::from("nonexistent"));
+
+        let (good_is_dir, good_valid, bad_is_dir, bad_valid) = (
+            good_link.is_dir(),
+            good_link.link_valid(),
+            bad_link.is_dir(),
+            bad_link.link_valid(),
+        );
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert!(
+            good_is_dir,
+            "symlink to a directory should count as a directory"
+        );
+        assert!(good_valid);
+        assert!(
+            !bad_is_dir,
+            "broken symlink should not count as a directory"
+        );
+        assert!(!bad_valid);
+    }
+
+    #[test]
+    fn symlink_to_file_is_dir_false_but_valid() {
+        let dir = std::env::temp_dir().join(format!("joshuto-test-{}", uuid::Uuid::new_v4()));
+        let target = dir.join("file");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(&target, b"data").unwrap();
+        let link = dir.join("file_link");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let link_meta = link_metadata(link.clone(), fs::read_link(&link).unwrap().into_os_string());
+
+        let (is_dir, valid) = (link_meta.is_dir(), link_meta.link_valid());
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert!(!is_dir);
+        assert!(valid);
     }
 }

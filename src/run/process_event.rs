@@ -117,6 +117,12 @@ pub fn process_io_task_start(app_state: &mut AppState, stats: IoTaskStat) {
 
 /// Applies a progress update to the in-progress IO task, if any.
 pub fn process_io_task_progress(app_state: &mut AppState, res: IoTaskProgressMessage) {
+    if let IoTaskProgressMessage::SourceMissing { file_path } = &res {
+        app_state
+            .state
+            .message_queue_mut()
+            .push_info(format!("skipped missing file: {}", file_path.display()));
+    }
     let worker_state = app_state.state.worker_state_mut();
     if let Some(observer) = worker_state.progress.as_mut() {
         observer.process_msg(res);
@@ -220,6 +226,12 @@ pub fn process_directory_load(
         tab.dir_load_in_flight.remove(&path);
         // remove from loading state
         tab.history_metadata_mut().remove(&path);
+        // the load's generation is consumed: only a newer load for this same path may
+        // supersede it
+        let generation_matches = tab.dir_load_generation.get(&path) == Some(&generation);
+        if generation_matches {
+            tab.dir_load_generation.remove(&path);
+        }
         match res {
             Ok(contents) => {
                 let tab_options = tab.option_ref().clone();
@@ -231,8 +243,11 @@ pub fn process_directory_load(
                     &tab_options,
                 ) {
                     Ok(dirlist) => {
-                        let is_current_load =
-                            tab.get_cwd() == path.as_path() && tab.load_generation == generation;
+                        // A load counts as current when it is both for the tab's cwd and
+                        // the newest load requested for that path. Per-path generations keep
+                        // concurrent soft-reloads of parent/current/child from disqualifying
+                        // each other (a global counter would reject all but the last queued).
+                        let is_current_load = tab.get_cwd() == path.as_path() && generation_matches;
                         if is_current_load {
                             let mut dirlists = Vec::with_capacity(8);
                             dirlists.push(dirlist);

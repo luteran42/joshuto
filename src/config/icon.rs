@@ -9,6 +9,7 @@ use super::icon_raw::IconsRaw;
 
 /// Icon glyphs used in the file list, keyed by exact name/extension with configurable fallbacks.
 #[derive(Debug)]
+#[cfg_attr(not(feature = "devicons"), allow(dead_code))]
 pub struct AppIcons {
     pub directory_exact: HashMap<String, String>,
     pub file_exact: HashMap<String, String>,

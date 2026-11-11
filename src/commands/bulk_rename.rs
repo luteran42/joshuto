@@ -4,6 +4,9 @@ use std::io::{BufRead, Write};
 use std::path;
 use std::process;
 
+#[cfg(unix)]
+use std::os::unix::ffi::OsStrExt;
+
 use rand::Rng;
 
 use crate::error::{AppError, AppErrorKind, AppResult};
@@ -17,15 +20,37 @@ use super::reload;
 
 const ENV_TMP_DIR: &str = "TMP_DIR";
 const ENV_EDITOR: &str = "EDITOR";
+const ENV_VISUAL: &str = "VISUAL";
 const FILE_PREFIX: &str = "joshuto-";
 const RAND_STR_LEN: usize = 10;
 
-/// Writes the selected entries' names to a temp file, opens `$EDITOR` on it, and applies any
+/// Resolves the editor to open the bulk-rename buffer with: `$EDITOR`, then `$VISUAL`, then
+/// the `nano` and `vi` fallbacks.
+fn find_editor() -> AppResult<String> {
+    let candidates = [
+        env::var(ENV_EDITOR).ok(),
+        env::var(ENV_VISUAL).ok(),
+        Some("nano".to_string()),
+        Some("vi".to_string()),
+    ];
+    candidates
+        .into_iter()
+        .flatten()
+        .find(|e| !e.trim().is_empty())
+        .ok_or_else(|| {
+            AppError::new(
+                AppErrorKind::EnvVar,
+                "no editor found: set $EDITOR or $VISUAL".to_string(),
+            )
+        })
+}
+
+/// Writes the selected entries' names to a temp file, opens an editor on it, and applies any
 /// line-for-line renames the user made, after a confirmation prompt.
 pub fn _bulk_rename(app_state: &mut AppState) -> AppResult {
     let tmp_directory = env::var(ENV_TMP_DIR).unwrap_or_else(|_| "/tmp".to_string());
 
-    let editor = std::env::var(ENV_EDITOR)?;
+    let editor = find_editor()?;
 
     /* generate a random file name to write to */
     let mut rand_str = String::with_capacity(FILE_PREFIX.len() + RAND_STR_LEN);
@@ -50,10 +75,10 @@ pub fn _bulk_rename(app_state: &mut AppState) -> AppResult {
     {
         let mut file = fs::File::create(&file_path)?;
         for path in entries.iter() {
-            let file_name = path.file_name();
-            let file_name_as_bytes = file_name.as_bytes();
-            file.write_all(file_name_as_bytes)?;
-            file.write_all(b"\n")?;
+            if let Some(name) = path.file_path().file_name() {
+                file.write_all(name.as_bytes())?;
+                file.write_all(b"\n")?;
+            }
         }
     }
 
@@ -70,7 +95,7 @@ pub fn _bulk_rename(app_state: &mut AppState) -> AppResult {
         let last_modified = fs::metadata(&file_path)?.modified()?;
         if last_modified <= initial_modified {
             // remember to remove file
-            std::fs::remove_file(&file_path)?;
+            let _ = std::fs::remove_file(&file_path);
             return Ok(());
         }
     }
@@ -79,23 +104,69 @@ pub fn _bulk_rename(app_state: &mut AppState) -> AppResult {
     {
         let file = std::fs::File::open(&file_path)?;
 
+        // Read raw bytes: file names may contain non-UTF-8 bytes (they were written verbatim
+        // above), so `BufRead::lines()`'s UTF-8 validation would abort the whole rename.
         let reader = std::io::BufReader::new(file);
-        for line in reader.lines() {
-            let line2 = line?;
-            let line = line2.trim();
-            if line.is_empty() {
+        for line in reader.split(b'\n') {
+            let raw = line?;
+            let bytes = trim_ascii(&raw);
+            if bytes.is_empty() {
                 continue;
             }
-            let path = path::PathBuf::from(line);
-            paths_renamed.push(path);
+            #[cfg(unix)]
+            let name = path::PathBuf::from(std::ffi::OsStr::from_bytes(bytes));
+            #[cfg(not(unix))]
+            let name = path::PathBuf::from(String::from_utf8_lossy(bytes).as_ref());
+            paths_renamed.push(name);
         }
-        std::fs::remove_file(&file_path)?;
+        // Remove the temp file as soon as we've read it: this is the only cleanup needed,
+        // so a failed or declined rename below can't leave the file behind either.
+        let _ = std::fs::remove_file(&file_path);
     }
     if paths_renamed.len() < entries.len() {
         return Err(AppError::new(
             AppErrorKind::Io,
             "Insufficient inputs".to_string(),
         ));
+    }
+
+    // Validate the new names before touching the filesystem: they must be plain file names
+    // (no path separators, no `.`/`..`), unique among themselves, and must not overwrite
+    // anything that already exists (on disk or under another selected entry's current name;
+    // a single pass can't swap two names safely).
+    let mut seen: std::collections::HashSet<std::ffi::OsString> =
+        std::collections::HashSet::with_capacity(paths_renamed.len());
+    for (p, q) in entries.iter().zip(paths_renamed.iter()) {
+        let from = p.file_path().file_name();
+        if from == Some(q.as_os_str()) {
+            continue;
+        }
+        let is_plain_name = q.file_name() == Some(q.as_os_str())
+            && !q.as_os_str().is_empty()
+            && q.as_os_str() != std::ffi::OsStr::new(".")
+            && q.as_os_str() != std::ffi::OsStr::new("..");
+        if !is_plain_name {
+            return Err(AppError::new(
+                AppErrorKind::InvalidParameters,
+                format!("invalid new file name: {:?}", q),
+            ));
+        }
+        if !seen.insert(q.as_os_str().to_os_string()) {
+            return Err(AppError::new(
+                AppErrorKind::InvalidParameters,
+                format!("duplicate new file name: {:?}", q),
+            ));
+        }
+        if entries
+            .iter()
+            .any(|e| e.file_path().file_name() == Some(q.as_os_str()))
+            || fs::symlink_metadata(q).is_ok()
+        {
+            return Err(AppError::new(
+                AppErrorKind::InvalidParameters,
+                format!("'{}' already exists", q.display()),
+            ));
+        }
     }
 
     clear_screen();
@@ -112,21 +183,38 @@ pub fn _bulk_rename(app_state: &mut AppState) -> AppResult {
     match user_input_fmt.as_str() {
         "" | "y" | "yes" => {
             for (p, q) in entries.iter().zip(paths_renamed.iter()) {
-                let mut handle = process::Command::new("mv")
-                    .arg("-iv")
-                    .arg("--")
-                    .arg(p.file_name())
-                    .arg(q)
-                    .spawn()?;
-                handle.wait()?;
+                if let Some(from) = p.file_path().file_name() {
+                    if from == q.as_os_str() {
+                        continue;
+                    }
+                    fs::rename(from, q)?;
+                }
             }
         }
         _ => {}
     }
     wait_for_enter()?;
 
-    std::fs::remove_file(file_path)?;
     Ok(())
+}
+
+/// Trims leading and trailing ASCII whitespace from a byte slice.
+fn trim_ascii(mut bytes: &[u8]) -> &[u8] {
+    while let Some(first) = bytes.first() {
+        if first.is_ascii_whitespace() {
+            bytes = &bytes[1..];
+        } else {
+            break;
+        }
+    }
+    while let Some(last) = bytes.last() {
+        if last.is_ascii_whitespace() {
+            bytes = &bytes[..bytes.len() - 1];
+        } else {
+            break;
+        }
+    }
+    bytes
 }
 
 /// Implements `bulk_rename`: releases the terminal for `$EDITOR`, runs the bulk rename, then

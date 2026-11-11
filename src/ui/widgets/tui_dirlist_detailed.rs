@@ -16,6 +16,7 @@ use crate::utils::style;
 use crate::utils::{format, unix};
 use unicode_width::UnicodeWidthStr;
 
+#[cfg(feature = "devicons")]
 use super::tui_dirlist::get_entry_icon;
 
 const MIN_LEFT_LABEL_WIDTH: i32 = 15;
@@ -163,6 +164,7 @@ fn display_line_mode(mode: LineMode, entry: &JoshutoDirEntry) -> String {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(feature = "devicons"), allow(unused_variables))]
 fn print_entry(
     config: &AppConfig,
     buf: &mut Buffer,

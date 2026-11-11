@@ -173,7 +173,8 @@ impl Background {
         let cancel_token = Arc::new(AtomicBool::new(false));
         let generation = if let Some(tab) = app_state.state.tab_state_mut().tab_mut(&tab_id) {
             // A newer load for this same path supersedes the previous one; loads for
-            // other paths (e.g. parent/current/child from a soft reload) run concurrently
+            // other paths (e.g. parent/current/child from a soft reload) run concurrently,
+            // each tracked by its own per-path generation.
             tab.cancel_dir_load_for(&dir_path);
             tab.dir_load_in_flight
                 .insert(dir_path.clone(), cancel_token.clone());
@@ -182,6 +183,8 @@ impl Background {
                     .insert(dir_path.clone(), PreviewDirState::Loading);
             }
             tab.load_generation += 1;
+            tab.dir_load_generation
+                .insert(dir_path.clone(), tab.load_generation);
             tab.load_generation
         } else {
             0

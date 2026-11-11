@@ -134,6 +134,9 @@ impl std::str::FromStr for Command {
             Self::CalculateCumulativeSize
         );
 
+        // `restart` (standalone); `quit --restart` also resolves to `Self::Restart`
+        simple_command_conversion_case!(command, CMD_RESTART, Self::Restart(QuitAction::Restart));
+
         if command == CMD_QUIT {
             match arg {
                 "--force" => Ok(Self::Quit(QuitAction::Force)),
@@ -677,7 +680,7 @@ impl std::str::FromStr for Command {
 mod tests {
     use std::str::FromStr;
 
-    use crate::constants::command_name::CMD_CANCEL_FILES;
+    use crate::constants::command_name::{CMD_CANCEL_FILES, CMD_RESTART};
     use crate::traits::app_execute::AppCommand;
 
     use super::Command;
@@ -696,5 +699,15 @@ mod tests {
     #[test]
     fn cancel_file_operation_rejects_arguments() {
         assert!(Command::from_str("cancel_file_operation --unexpected").is_err());
+    }
+
+    #[test]
+    fn restart_parses_as_its_own_command() {
+        let command = Command::from_str(CMD_RESTART).unwrap();
+        match &command {
+            Command::Restart(_) => {}
+            _ => panic!("expected restart command"),
+        }
+        assert_eq!(command.command(), CMD_RESTART);
     }
 }

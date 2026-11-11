@@ -66,6 +66,9 @@ impl IoTaskStat {
                 self.progress.bytes_processed += file_size;
                 self.progress.files_processed += 1;
             }
+            // Skipped files are reported to the user through the message queue (see
+            // `process_io_task_progress`); they don't count towards progress.
+            IoTaskProgressMessage::SourceMissing { .. } => {}
         }
     }
 
@@ -90,8 +93,17 @@ impl IoTaskStat {
 /// A progress update sent from a background file-operation worker thread.
 #[derive(Clone, Debug)]
 pub enum IoTaskProgressMessage {
-    FileStart { file_path: path::PathBuf },
-    FileComplete { file_size: u64 },
+    FileStart {
+        file_path: path::PathBuf,
+    },
+    FileComplete {
+        file_size: u64,
+    },
+    /// A staged source file no longer exists (deleted or renamed externally); the task
+    /// continues with the remaining files.
+    SourceMissing {
+        file_path: path::PathBuf,
+    },
 }
 
 /// Formats a human-readable progress message like `"Copying (3/10) (1.2MB/5MB) completed"`.

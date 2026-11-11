@@ -5,6 +5,7 @@ use ratatui::widgets::Widget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::config::app::AppConfig;
+#[cfg(feature = "devicons")]
 use crate::fs::{FileType, JoshutoMetadata};
 use crate::fs::{JoshutoDirEntry, JoshutoDirList};
 use crate::ui::widgets::trim_file_label;
@@ -43,7 +44,7 @@ impl Widget for TuiDirList<'_> {
             return;
         }
 
-        let curr_index = self.dirlist.get_index().unwrap();
+        let curr_index = self.dirlist.get_index();
         let skip_dist = self.dirlist.first_index_for_viewport();
 
         let drawing_width = area.width as usize;
@@ -60,7 +61,7 @@ impl Widget for TuiDirList<'_> {
 
                 let style = if !self.focused {
                     style::entry_style(self.config, entry)
-                } else if ix == curr_index {
+                } else if Some(ix) == curr_index {
                     style::entry_style(self.config, entry).add_modifier(Modifier::REVERSED)
                 } else {
                     style::entry_style(self.config, entry)
@@ -80,6 +81,7 @@ impl Widget for TuiDirList<'_> {
     }
 }
 
+#[cfg_attr(not(feature = "devicons"), allow(unused_variables))]
 fn print_entry(
     config: &AppConfig,
     buf: &mut Buffer,

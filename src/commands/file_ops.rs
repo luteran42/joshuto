@@ -114,8 +114,12 @@ pub fn create_io_task(
 
 /// Implements `paste_files`: queues the previously cut/copied selection's operation as a
 /// background task targeting the current directory.
+///
+/// The stashed selection is kept for copy operations, so the same files can be pasted into
+/// several destinations in a row (and a failed paste doesn't lose the selection); it is
+/// consumed for cut/symlink, which are one-shot.
 pub fn create_io_paste_task(app_state: &mut AppState, options: FileOperationOptions) -> AppResult {
-    let local_state = app_state.state.take_local_state().ok_or_else(|| {
+    let local_state = app_state.state.local_state.as_ref().ok_or_else(|| {
         let err_msg = "No files selected";
         AppError::new(AppErrorKind::InvalidParameters, err_msg.to_string())
     })?;
@@ -126,13 +130,19 @@ pub fn create_io_paste_task(app_state: &mut AppState, options: FileOperationOpti
         return Err(err);
     }
 
+    let file_op = local_state.file_op;
+    let paths = local_state.paths.clone();
+    if file_op != FileOperation::Copy {
+        app_state.state.take_local_state();
+    }
+
     let dest = app_state
         .state
         .tab_state_ref()
         .curr_tab_ref()
         .get_cwd()
         .to_path_buf();
-    let worker_thread = IoTask::new(local_state.file_op, local_state.paths, dest, options);
+    let worker_thread = IoTask::new(file_op, paths, dest, options);
     app_state.state.worker_state_mut().push_task(worker_thread);
 
     Ok(())

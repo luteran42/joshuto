@@ -32,6 +32,7 @@ pub struct DisplayOption {
     pub show_borders: bool,
     pub show_hostname: bool,
     pub show_hidden: bool,
+    #[cfg_attr(not(feature = "devicons"), allow(dead_code))]
     pub show_icons: bool,
     pub preserve_selection: bool,
     pub line_number_style: LineNumberStyle,
@@ -54,7 +55,16 @@ impl From<DisplayOptionRaw> for DisplayOption {
             _ => default_column_ratio(),
         };
 
-        let total = (left + mid + right) as u32;
+        // A zero (or overflowing) total would produce `Constraint::Ratio(x, 0)`, which panics
+        // inside ratatui at render time: fall back to the default ratio instead.
+        let total = left + mid + right;
+        let (left, mid, right) = if total == 0 || total > u32::MAX as usize {
+            default_column_ratio()
+        } else {
+            (left, mid, right)
+        };
+
+        let total = total as u32;
 
         let default_layout = [
             Constraint::Ratio(left as u32, total),

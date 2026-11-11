@@ -49,7 +49,7 @@ impl Widget for TuiTopBar<'_> {
             top_bar_spans.push(Span::styled(" ", username_style));
         }
 
-        let available_tab_width = area.width as usize - name_width;
+        let available_tab_width = area.width as usize - name_width.min(area.width as usize);
         let mut paths = Vec::new();
         let tabs = self.app_state.state.tab_state_ref().tab_refs_in_order();
         for tab in tabs {

@@ -68,24 +68,38 @@ where
         let pager_env = std::env::var("PAGER").unwrap_or_else(|_| String::from("tail"));
         let pager_args: Vec<&str> = pager_env.split_whitespace().collect();
 
-        if let Some(child_stdout) = command
-            .stdin(process::Stdio::null())
-            .stdout(process::Stdio::piped())
-            .spawn()?
-            .stdout
-        {
-            process::Command::new(pager_args[0])
-                .args(&pager_args[1..])
-                .stdin(child_stdout)
-                .status()?;
+        if let Some(pager) = pager_args.first() {
+            let mut child = command
+                .stdin(process::Stdio::null())
+                .stdout(process::Stdio::piped())
+                .spawn()?;
+            if let Some(child_stdout) = child.stdout.take() {
+                process::Command::new(pager)
+                    .args(&pager_args[1..])
+                    .stdin(child_stdout)
+                    .status()?;
+            }
+            // Wait for the child so it doesn't linger as a zombie after the pager exits.
+            child.wait()?;
+        } else {
+            // `$PAGER` was set to an empty string: run without a pager.
+            run_and_wait(&mut command)?;
+            if entry.get_confirm_exit() {
+                wait_for_enter()?;
+            }
         }
-        command.status()?;
     } else {
-        let _ = command.status()?;
+        run_and_wait(&mut command)?;
         if entry.get_confirm_exit() {
             wait_for_enter()?;
         }
     }
+    Ok(())
+}
+
+/// Runs `command` to completion and waits for it (so it doesn't linger as a zombie).
+fn run_and_wait(command: &mut process::Command) -> io::Result<()> {
+    command.status()?;
     Ok(())
 }
 

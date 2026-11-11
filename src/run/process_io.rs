@@ -41,13 +41,40 @@ pub fn process_io_task(io_task: &IoTask, event_tx: &mpsc::Sender<AppEvent>) -> A
         check_dest_not_inside_src(io_task)?;
     }
 
-    let (total_files, total_bytes) = query_number_of_items(io_task.paths.as_slice())?;
-    let src = io_task.paths[0].parent().unwrap().to_path_buf();
+    // Sources can vanish between staging and pasting (deleted or renamed externally): skip
+    // them instead of aborting the whole task, so the remaining files are still processed.
+    let mut paths: Vec<path::PathBuf> = Vec::with_capacity(io_task.paths.len());
+    for path in io_task.paths.iter() {
+        if path.symlink_metadata().is_ok() {
+            paths.push(path.clone());
+        } else {
+            let _ = event_tx.send(AppEvent::IoTaskProgress(
+                IoTaskProgressMessage::SourceMissing {
+                    file_path: path.clone(),
+                },
+            ));
+        }
+    }
+    if paths.is_empty() {
+        let msg = if io_task.paths.is_empty() {
+            "no source files to process".to_string()
+        } else {
+            "all source files are missing".to_string()
+        };
+        return Err(AppError::new(AppErrorKind::InvalidParameters, msg));
+    }
+
+    let (total_files, total_bytes) = query_number_of_items(paths.as_slice())?;
+    let src = paths
+        .first()
+        .and_then(|p| p.parent())
+        .unwrap_or(io_task.dest.as_path())
+        .to_path_buf();
     let dest = io_task.dest.clone();
 
     let operation_progress = FileOperationProgress {
         kind: io_task.operation,
-        current_file: io_task.paths[0].clone(),
+        current_file: paths.first().cloned().unwrap_or_default(),
         total_files,
         files_processed: 0,
         total_bytes,
@@ -59,10 +86,10 @@ pub fn process_io_task(io_task: &IoTask, event_tx: &mpsc::Sender<AppEvent>) -> A
     let _ = event_tx.send(event);
 
     let res = match io_task.get_operation_type() {
-        FileOperation::Cut => paste_cut(io_task, event_tx),
-        FileOperation::Copy => paste_copy(io_task, event_tx),
-        FileOperation::Delete => delete(io_task, event_tx),
-        FileOperation::Symlink => paste_symlink(io_task, event_tx),
+        FileOperation::Cut => paste_cut(&paths, io_task, event_tx),
+        FileOperation::Copy => paste_copy(&paths, io_task, event_tx),
+        FileOperation::Delete => delete(&paths, io_task, event_tx),
+        FileOperation::Symlink => paste_symlink(&paths, io_task, event_tx),
     };
     res?;
     Ok(())
@@ -91,30 +118,40 @@ fn check_dest_not_inside_src(io_task: &IoTask) -> AppResult {
     Ok(())
 }
 
-fn paste_copy(task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
-    for path in task.paths.iter() {
+fn paste_copy(paths: &[path::PathBuf], task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
+    for path in paths {
+        if path.symlink_metadata().is_err() {
+            continue;
+        }
         recursive_copy(tx, path.as_path(), task.dest.as_path(), task.options)?;
     }
     Ok(())
 }
 
-fn paste_cut(task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
-    for path in task.paths.iter() {
+fn paste_cut(paths: &[path::PathBuf], task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
+    for path in paths {
+        if path.symlink_metadata().is_err() {
+            continue;
+        }
         recursive_cut(tx, path.as_path(), task.dest.as_path(), task.options)?;
     }
     Ok(())
 }
 
-fn paste_symlink(task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
+fn paste_symlink(paths: &[path::PathBuf], task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
     match task.options.symlink_relative {
-        true => paste_link_relative(task, tx),
-        false => paste_link_absolute(task, tx),
+        true => paste_link_relative(paths, task, tx),
+        false => paste_link_absolute(paths, task, tx),
     }
 }
 
-fn paste_link_absolute(task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
+fn paste_link_absolute(
+    paths: &[path::PathBuf],
+    task: &IoTask,
+    tx: &mpsc::Sender<AppEvent>,
+) -> AppResult {
     #[cfg(unix)]
-    for src in task.paths.iter() {
+    for src in paths {
         let event = IoTaskProgressMessage::FileStart {
             file_path: src.to_path_buf(),
         };
@@ -133,9 +170,13 @@ fn paste_link_absolute(task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult 
     Ok(())
 }
 
-fn paste_link_relative(task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
+fn paste_link_relative(
+    paths: &[path::PathBuf],
+    task: &IoTask,
+    tx: &mpsc::Sender<AppEvent>,
+) -> AppResult {
     #[cfg(unix)]
-    for src in task.paths.iter() {
+    for src in paths {
         let event = IoTaskProgressMessage::FileStart {
             file_path: src.to_path_buf(),
         };
@@ -175,17 +216,17 @@ fn paste_link_relative(task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult 
     Ok(())
 }
 
-fn delete(task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
+fn delete(paths: &[path::PathBuf], task: &IoTask, tx: &mpsc::Sender<AppEvent>) -> AppResult {
     if task.options.permanently {
-        remove_files(&task.paths, tx)?;
+        remove_files(paths, tx)?;
     } else {
-        trash_files(&task.paths, tx)?;
+        trash_files(paths, tx)?;
     }
     Ok(())
 }
 
-/// Recursively copies `src` into `dest`, renaming on conflict unless `options.overwrite`,
-/// reporting per-file progress over `tx`.
+/// Recursively copies `src` into `dest`; on conflict, skips if `options.skip_exist`, overwrites
+/// if `options.overwrite`, otherwise renames. Reports per-file progress over `tx`.
 pub fn recursive_copy(
     tx: &mpsc::Sender<AppEvent>,
     src: &path::Path,
@@ -201,19 +242,21 @@ pub fn recursive_copy(
     if let Some(s) = src.file_name() {
         dest_buf.push(s);
     }
-    if !options.overwrite {
-        rename_filename_conflict(&mut dest_buf);
-    }
 
     let file_type = fs::symlink_metadata(src)?.file_type();
     if file_type.is_dir() {
         match fs::create_dir(dest_buf.as_path()) {
             Ok(_) => {}
-            e => {
-                if !options.overwrite {
-                    return e;
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                // An existing directory is merged into when overwriting or when skipping
+                // existing files (`cp -n` semantics: only missing children are copied);
+                // otherwise the destination is renamed out of the way, as before.
+                if !options.overwrite && !options.skip_exist {
+                    rename_filename_conflict(&mut dest_buf);
+                    fs::create_dir(dest_buf.as_path())?;
                 }
             }
+            e => return e,
         }
         for entry in fs::read_dir(src)? {
             let entry = entry?;
@@ -225,6 +268,15 @@ pub fn recursive_copy(
 
         Ok(())
     } else if file_type.is_file() {
+        if options.skip_exist && dest_buf.symlink_metadata().is_ok() {
+            // "skip existing": leave the destination as-is, count the file towards progress
+            let event = IoTaskProgressMessage::FileComplete { file_size: 0 };
+            let _ = tx.send(AppEvent::IoTaskProgress(event));
+            return Ok(());
+        }
+        if !options.overwrite {
+            rename_filename_conflict(&mut dest_buf);
+        }
         let bytes_processed = fs::copy(src, dest_buf)?;
         let event = IoTaskProgressMessage::FileComplete {
             file_size: bytes_processed,
@@ -233,6 +285,15 @@ pub fn recursive_copy(
 
         Ok(())
     } else if file_type.is_symlink() {
+        if options.skip_exist && dest_buf.symlink_metadata().is_ok() {
+            // "skip existing": leave the destination as-is, count the file towards progress
+            let event = IoTaskProgressMessage::FileComplete { file_size: 0 };
+            let _ = tx.send(AppEvent::IoTaskProgress(event));
+            return Ok(());
+        }
+        if !options.overwrite {
+            rename_filename_conflict(&mut dest_buf);
+        }
         let link_path = fs::read_link(src)?;
         std::os::unix::fs::symlink(link_path, dest_buf)?;
         let event = IoTaskProgressMessage::FileComplete { file_size: 1 };
@@ -244,8 +305,9 @@ pub fn recursive_copy(
     }
 }
 
-/// Recursively moves `src` into `dest`, falling back to copy-then-delete across filesystems,
-/// renaming on conflict unless `options.overwrite`, reporting per-file progress over `tx`.
+/// Recursively moves `src` into `dest`, falling back to copy-then-delete across filesystems;
+/// on conflict, skips if `options.skip_exist`, overwrites if `options.overwrite`, otherwise
+/// renames. Reports per-file progress over `tx`.
 pub fn recursive_cut(
     tx: &mpsc::Sender<AppEvent>,
     src: &path::Path,
@@ -260,6 +322,12 @@ pub fn recursive_cut(
     let mut dest_buf = dest.to_path_buf();
     if let Some(s) = src.file_name() {
         dest_buf.push(s);
+    }
+    if options.skip_exist && dest_buf.symlink_metadata().is_ok() {
+        // "skip existing": leave the destination as-is and keep the source untouched
+        let event = IoTaskProgressMessage::FileComplete { file_size: 0 };
+        let _ = tx.send(AppEvent::IoTaskProgress(event));
+        return Ok(());
     }
     if !options.overwrite {
         rename_filename_conflict(&mut dest_buf);
@@ -446,5 +514,123 @@ mod tests {
 
         res.unwrap();
         assert!(has_new && has_old && src_gone);
+    }
+
+    #[test]
+    fn copy_dir_onto_existing_name_without_overwrite_renames() {
+        let dir = std::env::temp_dir().join(format!("joshuto-test-{}", uuid::Uuid::new_v4()));
+        let (src, dest) = (dir.join("src"), dir.join("dest"));
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(dest.join("src")).unwrap();
+        fs::write(src.join("keep"), b"original").unwrap();
+        fs::write(dest.join("src/other"), b"other").unwrap();
+
+        let (tx, _rx) = mpsc::channel();
+        recursive_copy(&tx, &src, &dest, FileOperationOptions::default()).unwrap();
+
+        let (renamed, untouched) = (
+            fs::read(dest.join("src_0/keep")).unwrap(),
+            fs::read(dest.join("src/other")).unwrap(),
+        );
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(renamed, b"original");
+        assert_eq!(untouched, b"other");
+    }
+
+    #[test]
+    fn copy_with_skip_exist_leaves_existing_files() {
+        let dir = std::env::temp_dir().join(format!("joshuto-test-{}", uuid::Uuid::new_v4()));
+        let (src, dest) = (dir.join("src"), dir.join("dest"));
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&dest).unwrap();
+        fs::write(src.join("keep"), b"original").unwrap();
+        fs::write(src.join("fresh"), b"fresh").unwrap();
+        fs::write(dest.join("keep"), b"existing").unwrap();
+        // an existing subdirectory should be merged into, copying only missing children
+        fs::create_dir_all(src.join("sub")).unwrap();
+        fs::write(src.join("sub/new"), b"new").unwrap();
+        fs::create_dir_all(dest.join("sub")).unwrap();
+        fs::write(dest.join("sub/old"), b"old").unwrap();
+
+        let (tx, _rx) = mpsc::channel();
+        let options = FileOperationOptions {
+            skip_exist: true,
+            ..Default::default()
+        };
+        // copy each child of `src` into `dest`, like `paste_files` does per staged entry
+        for entry in fs::read_dir(&src).unwrap() {
+            let entry = entry.unwrap();
+            recursive_copy(&tx, &entry.path(), &dest, options).unwrap();
+        }
+
+        let (keep, fresh, sub_old, sub_new, src_intact) = (
+            fs::read(dest.join("keep")).unwrap(),
+            fs::read(dest.join("fresh")).unwrap(),
+            fs::read(dest.join("sub/old")).unwrap(),
+            fs::read(dest.join("sub/new")).unwrap(),
+            fs::read(src.join("keep")).unwrap(),
+        );
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(keep, b"existing");
+        assert_eq!(fresh, b"fresh");
+        assert_eq!(sub_old, b"old");
+        assert_eq!(sub_new, b"new");
+        assert_eq!(src_intact, b"original");
+    }
+
+    #[test]
+    fn cut_with_skip_exist_keeps_source() {
+        let dir = std::env::temp_dir().join(format!("joshuto-test-{}", uuid::Uuid::new_v4()));
+        let (src, dest) = (dir.join("src"), dir.join("dest"));
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(dest.join("src")).unwrap();
+        fs::write(src.join("keep"), b"original").unwrap();
+        fs::write(dest.join("src/keep"), b"existing").unwrap();
+
+        let (tx, _rx) = mpsc::channel();
+        let options = FileOperationOptions {
+            skip_exist: true,
+            ..Default::default()
+        };
+        // moving the `src` directory into `dest` where `dest/src` already exists: skipped
+        recursive_cut(&tx, &src, &dest, options).unwrap();
+
+        let (keep, src_kept) = (
+            fs::read(dest.join("src/keep")).unwrap(),
+            src.join("keep").exists(),
+        );
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(keep, b"existing");
+        assert!(src_kept);
+    }
+
+    #[test]
+    fn missing_sources_are_skipped_not_fatal() {
+        let dir = std::env::temp_dir().join(format!("joshuto-test-{}", uuid::Uuid::new_v4()));
+        let (src, dest) = (dir.join("src"), dir.join("dest"));
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&dest).unwrap();
+        fs::write(src.join("here"), b"data").unwrap();
+        let gone = src.join("gone");
+
+        let task = IoTask::new(
+            FileOperation::Copy,
+            vec![gone, src.join("here")],
+            dest.clone(),
+            FileOperationOptions::default(),
+        );
+        let (tx, rx) = mpsc::channel();
+        let res = process_io_task(&task, &tx);
+        // drain the progress events so the channel doesn't block
+        drop(tx);
+        for _ in rx {}
+        let copied = fs::read(dest.join("here")).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+
+        res.unwrap();
+        assert_eq!(copied, b"data");
     }
 }
